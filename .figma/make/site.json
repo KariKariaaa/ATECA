@@ -1,0 +1,10 @@
+{
+  "description": "Manage machinery rentals efficiently with real-time inventory tracking, quote generation, and rental management for internal employees.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
