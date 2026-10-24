@@ -4,6 +4,7 @@ import QuotesModule from "./QuotesModule";
 import RentalsModule from "./RentalsModule";
 import ClientsModule from "./ClientesModule";
 import UsuariosModule from"./UsuariosModule";
+import PerfilModals, { type PerfilModalTipo } from "./Perfilmodals";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -130,79 +131,14 @@ const Icon = {
 
 // ── Data ───────────────────────────────────────────────────────────────────────
 
-const kpis = [
-  {
-    label: "Activos Disponibles",
-    value: 142,
-    sub: "de 218 en total",
-    color: "bg-emerald-50 border-emerald-200",
-    dot: "bg-emerald-500",
-    textColor: "text-emerald-700",
-    icon: "assets",
-  },
-  {
-    label: "Activos Alquilados",
-    value: 61,
-    sub: "28% del inventario",
-    color: "bg-blue-50 border-blue-200",
-    dot: "bg-blue-500",
-    textColor: "text-blue-700",
-    icon: "rentals",
-  },
-  {
-    label: "En Mantenimiento",
-    value: 15,
-    sub: "3 programados hoy",
-    color: "bg-amber-50 border-amber-200",
-    dot: "bg-amber-500",
-    textColor: "text-amber-700",
-    icon: "maintenance",
-  },
-  {
-    label: "Cotizaciones del Mes",
-    value: 34,
-    sub: "12 pendientes de respuesta",
-    color: "bg-purple-50 border-purple-200",
-    dot: "bg-purple-500",
-    textColor: "text-purple-700",
-    icon: "quotes",
-  },
-  {
-    label: "Alquileres Activos",
-    value: 48,
-    sub: "↑ 6 vs mes anterior",
-    color: "bg-navy-50 border-navy-200",
-    dot: "bg-[#102c4d]",
-    textColor: "text-[#102c4d]",
-    icon: "rentals2",
-  },
-];
-
-const upcomingReturns = [
-  { id: "ALQ-0091", client: "Constructora Vega S.A.", contact: "Marco Vega", assets: "4× Andamio Tubular", returnDate: "2026-08-28", status: "En tiempo", statusColor: "bg-emerald-100 text-emerald-700" },
-  { id: "ALQ-0087", client: "Inmobiliaria del Norte", contact: "Sofía Ramos", assets: "2× Plataforma Elevadora", returnDate: "2026-08-29", status: "En tiempo", statusColor: "bg-emerald-100 text-emerald-700" },
-  { id: "ALQ-0083", client: "Ingeniería Cantera Ltda.", contact: "Roberto Cantera", assets: "6× Puntal Metálico", returnDate: "2026-08-30", status: "Parcial", statusColor: "bg-blue-100 text-blue-700" },
-  { id: "ALQ-0079", client: "Obras Civiles del Sur", contact: "Ana Fuentes", assets: "3× Andamio + 2× Rodo", returnDate: "2026-09-01", status: "En tiempo", statusColor: "bg-emerald-100 text-emerald-700" },
-  { id: "ALQ-0075", client: "Grupo Constructivo Merino", contact: "Luis Merino", assets: "8× Andamio Colgante", returnDate: "2026-09-03", status: "Próximo vencer", statusColor: "bg-amber-100 text-amber-700" },
-  { id: "ALQ-0071", client: "Pavimentos y Rellenos S.A.", contact: "Clara Ibáñez", assets: "1× Plataforma Tijera", returnDate: "2026-09-05", status: "En tiempo", statusColor: "bg-emerald-100 text-emerald-700" },
-];
-
-const maintenanceAlerts = [
-  { asset: "AND-0034 — Andamio Tubular 48mm", lastMaint: "2026-03-12", dueIn: 13, urgent: true },
-  { asset: "ROD-0011 — Jgo. Rodos Industriales", lastMaint: "2026-03-18", dueIn: 19, urgent: true },
-  { asset: "PUN-0028 — Puntal Metálico 3m", lastMaint: "2026-04-02", dueIn: 34, urgent: false },
-  { asset: "PLT-0007 — Plataforma Tijera 6m", lastMaint: "2026-04-15", dueIn: 47, urgent: false },
-];
-
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: "Dashboard" },
   { id: "quotes", label: "Cotizaciones", icon: "Quotes" },
   { id: "rentals", label: "Alquileres", icon: "Rentals" },
   { id: "assets", label: "Activos", icon: "Assets" },
   { id: "clients", label: "Clientes", icon: "Clients" },
-  { id: "maintenance", label: "Mantenimientos", icon: "Maintenance" },
-  { id: "reports", label: "Reportes", icon: "Reports" },
-  { id: "settings", label: "Configuración", icon: "Settings" },
+  { id: "perfil", label: "Mi perfil", icon: "User" },
+  { id: "pass", label: "Contraseña", icon: "Lock" },
   { id: "usuarios", label: "Usuarios", icon: "Clients" },
 ];
 
@@ -250,9 +186,9 @@ function LoginScreen() {
               <Icon.Construction />
             </div>
             <h1 className="text-white text-2xl font-bold" style={{ fontFamily: "Outfit, sans-serif" }}>
-              MaquilaRent
+              Alquileres ATECA
             </h1>
-            <p className="text-blue-200 text-sm mt-1">Sistema de Gestión de Maquinaria</p>
+            <p className="text-blue-200 text-sm mt-1">Alquileres ATECA</p>
           </div>
 
           {/* Form */}
@@ -326,7 +262,7 @@ function LoginScreen() {
         </div>
 
         <p className="text-center text-blue-300/60 text-xs mt-6">
-          © 2026 MaquilaRent · Sistema Interno · v2.4.1
+          © 2026 Karina Coc
         </p>
       </div>
     </div>
@@ -373,6 +309,20 @@ function NavItem({
 }
 
 import { PerfilUsuario } from "./uses/useAuth";
+
+
+function obtenerIniciales(nombreCompleto?: string | null): string {
+  const partes = nombreCompleto?.trim().split(/\s+/).filter(Boolean) ?? [];
+
+  if (partes.length === 0) return "U";
+
+  if (partes.length === 1) {
+    return partes[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
+}
+
 // ── Sidebar ────────────────────────────────────────────────────────────────────
 
 function Sidebar({
@@ -401,9 +351,9 @@ function Sidebar({
         </div>
         <div>
           <div className="text-white font-bold text-lg leading-none" style={{ fontFamily: "Outfit, sans-serif" }}>
-            MaquilaRent
+            Alquileres ATECA
           </div>
-          <div className="text-blue-300 text-xs mt-0.5">Gestión de Maquinaria</div>
+          <div className="text-blue-300 text-xs mt-0.5">Gestión de Alquileres</div>
         </div>
         {mobile && onClose && (
           <button onClick={onClose} className="ml-auto text-blue-300 hover:text-white">
@@ -415,7 +365,7 @@ function Sidebar({
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p className="text-blue-400 text-[10px] font-semibold uppercase tracking-widest px-4 mb-3">Principal</p>
-        {navItems.slice(0, 6).map((item) => (
+        {navItems.slice(0, 5).map((item) => (
           <NavItem
             key={item.id}
             item={item}
@@ -424,7 +374,7 @@ function Sidebar({
           />
         ))}
         <p className="text-blue-400 text-[10px] font-semibold uppercase tracking-widest px-4 mt-5 mb-3">Sistema</p>
-        {navItems.slice(6).map((item) => (
+        {navItems.slice(5).map((item) => (
           <NavItem
             key={item.id}
             item={item}
@@ -438,7 +388,7 @@ function Sidebar({
       <div className="border-t border-white/10 px-4 py-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-[#ffbc07] flex items-center justify-center text-[#102c4d] font-bold text-sm" style={{ fontFamily: "Outfit, sans-serif" }}>
-            JL
+            {obtenerIniciales(perfil?.nombreCompleto)}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-white text-sm font-semibold truncate" style={{ fontFamily: "Outfit, sans-serif" }}>{perfil?.nombreCompleto}</div>
@@ -476,13 +426,9 @@ function Topbar({ onMenuOpen, pageTitle, perfil }: { onMenuOpen: () => void; pag
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="relative p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
-          <Icon.Bell />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-        </button>
         <div className="hidden md:flex items-center gap-2 pl-2 border-l border-gray-200">
           <div className="w-7 h-7 rounded-full bg-[#102c4d] flex items-center justify-center text-white text-xs font-bold" style={{ fontFamily: "Outfit, sans-serif" }}>
-            JL
+            {obtenerIniciales(perfil?.nombreCompleto)}
           </div>
           <div className="text-right">
             <div className="text-[#102c4d] text-sm font-semibold leading-none" style={{ fontFamily: "Outfit, sans-serif" }}>{perfil?.nombreCompleto}</div>
@@ -495,255 +441,500 @@ function Topbar({ onMenuOpen, pageTitle, perfil }: { onMenuOpen: () => void; pag
 }
 
 // ── KPI Card ───────────────────────────────────────────────────────────────────
-
-function KpiCard({ kpi }: { kpi: (typeof kpis)[0] }) {
+import { useDashboard } from "./uses/useDashboard";
+function KpiCard({
+  label,
+  value,
+  sub,
+  color,
+  dot,
+  textColor,
+}: {
+  label: string;
+  value: number;
+  sub: string;
+  color: string;
+  dot: string;
+  textColor: string;
+}) {
   return (
-    <div className={`bg-white rounded-xl border ${kpi.color} p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow`}>
-      <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${kpi.dot}`} />
+    <div className={`bg-white rounded-xl border ${color} p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow`}>
+      <div className={`w-3 h-3 rounded-full mt-1 flex-shrink-0 ${dot}`} />
+
       <div className="flex-1 min-w-0">
-        <div className={`text-3xl font-bold ${kpi.textColor}`} style={{ fontFamily: "Outfit, sans-serif" }}>
-          {kpi.value}
+        <div
+          className={`text-3xl font-bold ${textColor}`}
+          style={{ fontFamily: "Outfit, sans-serif" }}
+        >
+          {value}
         </div>
-        <div className="text-[#102c4d] text-sm font-semibold mt-0.5">{kpi.label}</div>
-        <div className="text-gray-400 text-xs mt-1">{kpi.sub}</div>
+
+        <div className="text-[#102c4d] text-sm font-semibold mt-0.5">
+          {label}
+        </div>
+
+        <div className="text-gray-400 text-xs mt-1">{sub}</div>
       </div>
     </div>
   );
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
-
 function Dashboard() {
-  return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* KPIs */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[#102c4d] font-bold text-lg" style={{ fontFamily: "Outfit, sans-serif" }}>
-            Resumen del Sistema
-          </h3>
-          <span className="text-gray-400 text-xs">Actualizado: 27 ago 2026 · 09:14</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-          {kpis.map((k) => <KpiCard key={k.label} kpi={k} />)}
-        </div>
-      </section>
+  const {
+    data,
+    loading,
+    error,
+    actualizado,
+    recargar,
+  } = useDashboard();
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Upcoming returns */}
-        <section className="xl:col-span-2">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon.Calendar />
-                <h3 className="text-[#102c4d] font-bold text-base" style={{ fontFamily: "Outfit, sans-serif" }}>
-                  Próximas Devoluciones
-                </h3>
-              </div>
-              <button className="text-xs text-[#102c4d] font-semibold hover:text-[#ffbc07] transition-colors">
-                Ver todos →
-              </button>
-            </div>
+  const formatDate = (fecha: string) => {
+    if (!fecha) return "—";
 
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">Alquiler</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">Cliente</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">Activos</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">Devolución</th>
-                    <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">Estado</th>
-                    <th className="px-3 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {upcomingReturns.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs font-semibold text-[#102c4d] bg-blue-50 px-2 py-1 rounded">
-                          {r.id}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <div className="font-medium text-gray-900 text-xs">{r.client}</div>
-                        <div className="text-gray-400 text-xs">{r.contact}</div>
-                      </td>
-                      <td className="px-3 py-3.5 text-xs text-gray-600">{r.assets}</td>
-                      <td className="px-3 py-3.5">
-                        <div className="flex items-center gap-1.5 text-xs text-gray-700">
-                          <Icon.Calendar />
-                          {r.returnDate}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${r.statusColor}`}>
-                          {r.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3.5">
-                        <div className="flex items-center gap-1">
-                          <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#102c4d] transition-colors" title="Ver">
-                            <Icon.Eye />
-                          </button>
-                          <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-[#102c4d] transition-colors" title="Editar">
-                            <Icon.Edit />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+    // Se agrega la hora para evitar que la fecha se interprete
+    // como el día anterior por diferencias de zona horaria.
+    const date = new Date(`${fecha}T12:00:00`);
 
-            {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-gray-100">
-              {upcomingReturns.map((r) => (
-                <div key={r.id} className="px-4 py-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-semibold text-[#102c4d] bg-blue-50 px-2 py-0.5 rounded">
-                      {r.id}
-                    </span>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${r.statusColor}`}>
-                      {r.status}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm">{r.client}</div>
-                    <div className="text-gray-400 text-xs">{r.contact}</div>
-                  </div>
-                  <div className="text-xs text-gray-600">{r.assets}</div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <Icon.Calendar />
-                      Devolución: {r.returnDate}
-                    </div>
-                    <div className="flex gap-1">
-                      <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Icon.Eye /></button>
-                      <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400"><Icon.Edit /></button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Maintenance alerts */}
-        <section>
-          <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden h-full">
-            <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
-              <span className="text-amber-600"><Icon.Alert /></span>
-              <h3 className="text-amber-800 font-bold text-base" style={{ fontFamily: "Outfit, sans-serif" }}>
-                Mantenimientos Próximos
-              </h3>
-            </div>
-            <div className="p-4">
-              <p className="text-xs text-gray-500 mb-4">
-                Activos que requieren mantenimiento en los próximos 60 días (ciclo: 5 meses).
-              </p>
-              <div className="space-y-3">
-                {maintenanceAlerts.map((m) => (
-                  <div
-                    key={m.asset}
-                    className={`rounded-lg p-3.5 border ${m.urgent ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-gray-900 leading-tight">{m.asset}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Último: {m.lastMaint}
-                        </div>
-                      </div>
-                      <div className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${m.urgent ? "bg-red-500 text-white" : "bg-amber-400 text-amber-900"}`}>
-                        {m.dueIn}d
-                      </div>
-                    </div>
-                    {m.urgent && (
-                      <div className="mt-2 text-[10px] font-semibold text-red-600 uppercase tracking-wider">
-                        ⚠ Vence en menos de 20 días
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <button className="mt-4 w-full text-center text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors">
-                Ver todos los mantenimientos →
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* Quick actions bar */}
-      <section>
-        <div className="bg-[#102c4d] rounded-xl p-5 flex flex-wrap gap-3 items-center justify-between">
-          <div>
-            <div className="text-white font-bold text-base" style={{ fontFamily: "Outfit, sans-serif" }}>Acciones Rápidas</div>
-            <div className="text-blue-300 text-xs mt-0.5">Operaciones frecuentes del sistema</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Nueva Cotización", icon: "Quotes" },
-              { label: "Nuevo Alquiler", icon: "Rentals" },
-              { label: "Escanear QR", icon: "QR" },
-              { label: "Registrar Activo", icon: "Assets" },
-            ].map((a) => {
-              const Ic = Icon[a.icon as keyof typeof Icon] as React.FC;
-              return (
-                <button
-                  key={a.label}
-                  className="flex items-center gap-2 bg-white/10 hover:bg-[#ffbc07] hover:text-[#102c4d] text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-all duration-150"
-                  style={{ fontFamily: "Outfit, sans-serif" }}
-                >
-                  <Ic />
-                  {a.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-// ── Placeholder Content ────────────────────────────────────────────────────────
-
-function PlaceholderContent({ page }: { page: string }) {
-  const labels: Record<string, string> = {
-    quotes: "Cotizaciones",
-    rentals: "Alquileres",
-    assets: "Activos",
-    maintenance: "Mantenimientos",
-    reports: "Reportes",
-    settings: "Configuración",
+    return date.toLocaleDateString("es-GT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   };
 
+  const formatDateTime = (fecha: Date) =>
+    fecha.toLocaleString("es-GT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const obtenerEstadoDevolucion = (
+    diasRestantes: number,
+    parcial: boolean
+  ) => {
+    if (diasRestantes < 0) {
+      return {
+        texto: `Vencido (${Math.abs(diasRestantes)} d)`,
+        color: "bg-red-100 text-red-700",
+      };
+    }
+
+    if (parcial) {
+      return {
+        texto: "Parcial",
+        color: "bg-blue-100 text-blue-700",
+      };
+    }
+
+    if (diasRestantes <= 7) {
+      return {
+        texto: "Próximo vencer",
+        color: "bg-amber-100 text-amber-700",
+      };
+    }
+
+    return {
+      texto: "En tiempo",
+      color: "bg-emerald-100 text-emerald-700",
+    };
+  };
+
+  const totalAlquileres =
+    (data?.alquileres.iniciados ?? 0) +
+    (data?.alquileres.parciales ?? 0);
+
+  const porcentajeAlquilados =
+    data && data.activos.total > 0
+      ? Math.round(
+          (data.activos.alquilados / data.activos.total) * 100
+        )
+      : 0;
+
+  const kpisActuales = [
+    {
+      label: "Activos Disponibles",
+      value: data?.activos.disponibles ?? 0,
+      sub: `de ${data?.activos.total ?? 0} activos activos`,
+      color: "bg-emerald-50 border-emerald-200",
+      dot: "bg-emerald-500",
+      textColor: "text-emerald-700",
+    },
+    {
+      label: "Activos Alquilados",
+      value: data?.activos.alquilados ?? 0,
+      sub: `${porcentajeAlquilados}% del inventario activo`,
+      color: "bg-blue-50 border-blue-200",
+      dot: "bg-blue-500",
+      textColor: "text-blue-700",
+    },
+    {
+      label: "En Mantenimiento",
+      value: data?.activos.mantenimiento ?? 0,
+      sub: "Activos actualmente en mantenimiento",
+      color: "bg-amber-50 border-amber-200",
+      dot: "bg-amber-500",
+      textColor: "text-amber-700",
+    },
+    {
+      label: "Cotizaciones del Mes",
+      value: data?.cotizaciones.delMes ?? 0,
+      sub: `${data?.cotizaciones.pendientes ?? 0} cotizadas pendientes`,
+      color: "bg-purple-50 border-purple-200",
+      dot: "bg-purple-500",
+      textColor: "text-purple-700",
+    },
+    {
+      label: "Alquileres Activos",
+      value: totalAlquileres,
+      sub: `${data?.alquileres.iniciados ?? 0} iniciados · ${
+        data?.alquileres.parciales ?? 0
+      } parciales`,
+      color: "bg-navy-50 border-navy-200",
+      dot: "bg-[#102c4d]",
+      textColor: "text-[#102c4d]",
+    },
+  ];
+
   return (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl bg-[#102c4d]/10 flex items-center justify-center mx-auto mb-4 text-[#102c4d]">
-          <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3" />
-          </svg>
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-6">
+      {/* Encabezado y actualización */}
+      <section>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3
+            className="text-[#102c4d] font-bold text-lg"
+            style={{ fontFamily: "Outfit, sans-serif" }}
+          >
+            Resumen del Sistema
+          </h3>
+
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-xs">
+              {actualizado
+                ? `Actualizado: ${formatDateTime(actualizado)}`
+                : "Sin actualizar"}
+            </span>
+
+            <button
+              onClick={() => void recargar()}
+              disabled={loading}
+              className="text-xs font-semibold text-[#102c4d] hover:text-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Cargando..." : "↻ Actualizar"}
+            </button>
+          </div>
         </div>
-        <h3 className="text-[#102c4d] font-bold text-lg mb-2" style={{ fontFamily: "Outfit, sans-serif" }}>
-          Módulo: {labels[page] ?? page}
-        </h3>
-        <p className="text-gray-400 text-sm max-w-xs">
-          Esta pantalla es parte del prototipo. El módulo <strong>{labels[page]}</strong> se implementará aquí con sus listas, filtros, modales y CRUD completo.
-        </p>
-        <button className="mt-5 inline-flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-5 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors" style={{ fontFamily: "Outfit, sans-serif" }}>
-          + Agregar registro
-        </button>
-      </div>
+
+        {/* Error de consultas */}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <p className="font-semibold">
+              No se pudieron cargar algunos datos.
+            </p>
+
+            <p className="mt-1 break-words">{error}</p>
+
+            <button
+              onClick={() => void recargar()}
+              className="mt-2 font-semibold underline"
+            >
+              Intentar de nuevo
+            </button>
+          </div>
+        )}
+
+        {/* Indicador de carga inicial */}
+        {loading && !data ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500">
+            Cargando información del dashboard...
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+            {kpisActuales.map((kpi) => (
+              <KpiCard key={kpi.label} {...kpi} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {data && (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            {/* Próximas devoluciones */}
+            <section className="xl:col-span-2">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Icon.Calendar />
+
+                    <h3
+                      className="text-[#102c4d] font-bold text-base"
+                      style={{ fontFamily: "Outfit, sans-serif" }}
+                    >
+                      Devoluciones Pendientes
+                    </h3>
+                  </div>
+
+                  <span className="text-xs text-gray-400">
+                    {data.devoluciones.length} alquileres
+                  </span>
+                </div>
+
+                {data.devoluciones.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <div className="text-sm font-semibold text-gray-700">
+                      No hay devoluciones pendientes
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Cuando existan activos pendientes de devolución,
+                      aparecerán aquí.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Tabla para escritorio */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50">
+                            <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-5 py-3">
+                              Alquiler
+                            </th>
+                            <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">
+                              Cliente
+                            </th>
+                            <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">
+                              Activos pendientes
+                            </th>
+                            <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">
+                              Devolución
+                            </th>
+                            <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-3">
+                              Estado
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-gray-100">
+                          {data.devoluciones.map((r) => {
+                            const estado = obtenerEstadoDevolucion(
+                              r.diasRestantes,
+                              r.parcial
+                            );
+
+                            return (
+                              <tr
+                                key={r.idalquiler}
+                                className="hover:bg-gray-50/50 transition-colors"
+                              >
+                                <td className="px-5 py-3.5">
+                                  <span className="font-mono text-xs font-semibold text-[#102c4d] bg-blue-50 px-2 py-1 rounded">
+                                    {`ALQ-${String(r.idalquiler).padStart(4, "0")}`}
+                                  </span>
+                                </td>
+
+                                <td className="px-3 py-3.5">
+                                  <div className="font-medium text-gray-900 text-xs">
+                                    {r.empresa ?? r.contacto}
+                                  </div>
+                                  {r.empresa && (
+                                    <div className="text-gray-400 text-xs">
+                                      {r.contacto}
+                                    </div>
+                                  )}
+                                </td>
+
+                                <td className="px-3 py-3.5 text-xs text-gray-600">
+                                  {r.activos}
+                                  <div className="text-gray-400 mt-1">
+                                    {r.pendientes} activo(s) pendiente(s)
+                                  </div>
+                                </td>
+
+                                <td className="px-3 py-3.5">
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-700">
+                                    <Icon.Calendar />
+                                    {formatDate(r.fechafinestimada)}
+                                  </div>
+
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {r.diasRestantes < 0
+                                      ? `${Math.abs(r.diasRestantes)} día(s) de atraso`
+                                      : r.diasRestantes === 0
+                                        ? "Vence hoy"
+                                        : `En ${r.diasRestantes} día(s)`}
+                                  </div>
+                                </td>
+
+                                <td className="px-3 py-3.5">
+                                  <span
+                                    className={`text-xs font-semibold px-2.5 py-1 rounded-full ${estado.color}`}
+                                  >
+                                    {estado.texto}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Tarjetas para móvil */}
+                    <div className="md:hidden divide-y divide-gray-100">
+                      {data.devoluciones.map((r) => {
+                        const estado = obtenerEstadoDevolucion(
+                          r.diasRestantes,
+                          r.parcial
+                        );
+
+                        return (
+                          <div
+                            key={r.idalquiler}
+                            className="px-4 py-4 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs font-semibold text-[#102c4d] bg-blue-50 px-2 py-1 rounded">
+                                {`ALQ-${String(r.idalquiler).padStart(4, "0")}`}
+                              </span>
+
+                              <span
+                                className={`text-xs font-semibold px-2.5 py-1 rounded-full ${estado.color}`}
+                              >
+                                {estado.texto}
+                              </span>
+                            </div>
+
+                            <div>
+                              <div className="font-semibold text-gray-900 text-sm">
+                                {r.empresa ?? r.contacto}
+                              </div>
+
+                              {r.empresa && (
+                                <div className="text-gray-400 text-xs">
+                                  {r.contacto}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="text-xs text-gray-600">
+                              {r.activos}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                              <Icon.Calendar />
+                              Devolución: {formatDate(r.fechafinestimada)}
+                            </div>
+
+                            <div className="text-xs text-gray-400">
+                              {r.pendientes} activo(s) pendiente(s)
+                              {" · "}
+                              {r.diasRestantes < 0
+                                ? `${Math.abs(r.diasRestantes)} día(s) de atraso`
+                                : r.diasRestantes === 0
+                                  ? "Vence hoy"
+                                  : `En ${r.diasRestantes} día(s)`}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            {/* Alertas de mantenimiento */}
+            <section>
+              <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden h-full">
+                <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
+                  <span className="text-amber-600">
+                    <Icon.Alert />
+                  </span>
+
+                  <h3
+                    className="text-amber-800 font-bold text-base"
+                    style={{ fontFamily: "Outfit, sans-serif" }}
+                  >
+                    Mantenimientos Próximos
+                  </h3>
+                </div>
+
+                <div className="p-4">
+                  <p className="text-xs text-gray-500 mb-4">
+                    Activos que requieren mantenimiento dentro del umbral
+                    de alerta de 45 días. El ciclo es de 150 días.
+                  </p>
+
+                  {data.alertasMantenimiento.length === 0 ? (
+                    <div className="py-6 text-center text-sm text-gray-500">
+                      No hay alertas de mantenimiento por ahora.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {data.alertasMantenimiento.map((m) => {
+                        const vencido = m.diasRestantes <= 0;
+                        const urgente = m.diasRestantes <= 20;
+
+                        return (
+                          <div
+                            key={m.idactivo}
+                            className={`rounded-lg p-3.5 border ${
+                              vencido || urgente
+                                ? "bg-red-50 border-red-200"
+                                : "bg-amber-50 border-amber-200"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-semibold text-gray-900 leading-tight">
+                                  {m.codigo ? `${m.codigo} — ` : ""}
+                                  {m.nombre}
+                                </div>
+
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Última referencia:{" "}
+                                  {formatDate(m.ultimaReferencia)}
+                                </div>
+                              </div>
+
+                              <div
+                                className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${
+                                  vencido || urgente
+                                    ? "bg-red-500 text-white"
+                                    : "bg-amber-400 text-amber-900"
+                                }`}
+                              >
+                                {vencido
+                                  ? `${Math.abs(m.diasRestantes)} d vencido`
+                                  : `${m.diasRestantes} d`}
+                              </div>
+                            </div>
+
+                            {(vencido || urgente) && (
+                              <div className="mt-2 text-[10px] font-semibold text-red-600 uppercase tracking-wider">
+                                {vencido
+                                  ? "⚠ Mantenimiento vencido"
+                                  : "⚠ Mantenimiento próximo"}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
     </div>
   );
 }
-
 // ── Main App ───────────────────────────────────────────────────────────────────
 
 import { AuthProvider, useAuth } from "./uses/useAuth";
@@ -754,9 +945,7 @@ const pageTitles: Record<string, string> = {
   rentals: "Alquileres",
   assets: "Activos",
   clients: "Clientes",
-  maintenance: "Mantenimientos",
-  reports: "Reportes",
-  settings: "Configuración",
+  pass: "Contraseña",
 };
 
 export default function App() {
@@ -771,6 +960,13 @@ function AppContent() {
   const { session, perfil, loading, signOut } = useAuth();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [perfilModal, setPerfilModal] = useState<PerfilModalTipo | null>(null);
+
+  const handleNav = (id: string) => {
+    if (id === "perfil") setPerfilModal("datos");
+    else if (id === "pass") setPerfilModal("password");
+    else setActivePage(id);
+  };
 
   if (loading) {
     return (
@@ -790,7 +986,7 @@ function AppContent() {
       <div className="hidden md:flex flex-shrink-0 h-full">
         <Sidebar
           active={activePage}
-          onNav={setActivePage}
+          onNav={handleNav}
           perfil={perfil}
           onSignOut={signOut}
         />
@@ -806,7 +1002,7 @@ function AppContent() {
           <div className="relative z-10 h-full">
             <Sidebar
               active={activePage}
-              onNav={setActivePage}
+              onNav={handleNav}
               mobile
               onClose={() => setMobileMenuOpen(false)}
               perfil={perfil}
@@ -832,9 +1028,6 @@ function AppContent() {
           {activePage === "rentals" && <RentalsModule />}
           {activePage === "clients" && <ClientsModule />}
           {activePage === "usuarios" && <UsuariosModule />}
-          {activePage !== "dashboard" && activePage !== "assets" && activePage !== "quotes" && activePage !== "rentals" && (
-            <PlaceholderContent page={activePage} />
-          )}
         </main>
       </div>
 
@@ -866,6 +1059,14 @@ function AppContent() {
           <span className="text-[9px] font-semibold" style={{ fontFamily: "Outfit, sans-serif" }}>Más</span>
         </button>
       </nav>
+
+      {perfilModal && (
+        <PerfilModals
+          tipo={perfilModal}
+          onClose={() => setPerfilModal(null)}
+          // onDatosGuardados={recargarPerfil}  // ver nota abajo
+        />
+      )}
     </div>
   );
 }

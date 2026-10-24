@@ -16,6 +16,13 @@ export function maintenanceDueIn(lastMaint: string | null) {
   return TARGET_DAYS - daysSince(lastMaint);
 }
 
+export function formatearFecha(fecha: string | null): string {
+  if (!fecha) return "—";
+
+  const [anio, mes, dia] = fecha.slice(0, 10).split("-");
+  return `${dia}/${mes}/${anio.slice(-2)}`;
+}
+
 export function maintBadge(dueIn: number) {
   if (dueIn <= 0)
     return { label: "¡Vencido!", cls: "bg-red-100 text-red-700 border border-red-300", dot: "bg-red-500" };

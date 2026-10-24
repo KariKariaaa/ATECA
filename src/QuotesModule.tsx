@@ -6,6 +6,7 @@ import { useTarifas } from "./uses/useTarifas";
 import { useCotizaciones } from "./uses/useCotizaciones";
 import { useEstadosCotizacion } from "./uses/useEstadosCotizacion";
 import type { Contacto, Empleado, TarifaActivo } from "../types/inventory";
+import { formatearFecha } from "../types/format";
 
 // ── Types (solo de UI, no son tablas) ───────────────────────────────────────────
 
@@ -57,7 +58,13 @@ function durationDays(startDate: string, endDate: string) {
 function durationParts(days: number) {
   const months = Math.floor(days / 30);
   const weeks = Math.floor((days % 30) / 7);
-  return { months, weeks, days: days % 7 };
+  const extraDays = (days % 30) % 7;
+
+  return {
+    months,
+    weeks,
+    days: extraDays,
+  };
 }
 
 function durationLabel(startDate: string, endDate: string) {
@@ -254,15 +261,25 @@ function lineFromTariff(tariff: TarifaActivo, id = `new-${Date.now()}`): QuoteLi
   };
 }
 
-function calculateLineGross(line: QuoteLine, startDate: string, endDate: string) {
+function calculateLineGross(
+  line: QuoteLine,
+  startDate: string,
+  endDate: string
+) {
   const totalDays = durationDays(startDate, endDate);
   const { months, weeks, days } = durationParts(totalDays);
-  const dayCost = totalDays === 1
-    ? line.rateDayUnique
-    : months === 0 && weeks === 0
-      ? line.rateDayUnique + (totalDays - 1) * line.rateDayExtra
+
+  // El día único solo aplica cuando el alquiler dura exactamente 1 día.
+  const dayCost =
+    totalDays === 1
+      ? line.rateDayUnique
       : days * line.rateDayExtra;
-  return (months * line.rateMonth + weeks * line.rateWeek + dayCost) * line.quantity;
+
+  return (
+    months * line.rateMonth +
+    weeks * line.rateWeek +
+    dayCost
+  ) * line.quantity;
 }
 
 function calculateLineSubtotal(line: QuoteLine, startDate: string, endDate: string) {
@@ -418,7 +435,7 @@ function QuoteWizard({ onClose, onSave, contacts, employees, tariffs, defaultEmp
             <div className="flex flex-wrap items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-xs text-gray-600">
               <span><strong className="text-gray-900">{contacts.find((c) => c.id === contactId)?.name}</strong></span>
               <span className="text-gray-300">|</span>
-              <span>{startDate} → {endDate}</span>
+              <span>{formatearFecha(startDate)} → {formatearFecha(endDate)}</span>
               <span className="text-gray-300">|</span>
               <span>{displayEmployee(employees.find((e) => String(e.idempleado) === employeeId) ?? employees[0])}</span>
               <span className="text-gray-300">|</span>
@@ -626,7 +643,7 @@ function QuoteDetail({ quote, contacts, onBack, onEdit, onCancel }: {
             <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>{quote.number}</h2>
             <StatusBadge status={quote.status} />
           </div>
-          <p className="text-gray-400 text-sm mt-0.5">Creado el {quote.createdAt} · {quote.employee}</p>
+          <p className="text-gray-400 text-sm mt-0.5">Creado el {(formatearFecha(quote.createdAt))} · {quote.employee}</p>
         </div>
 
         <div className="flex flex-wrap gap-2 self-start">
@@ -675,7 +692,7 @@ function QuoteDetail({ quote, contacts, onBack, onEdit, onCancel }: {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Período de alquiler</p>
             <div className="space-y-2">
-              {[["Inicio", quote.startDate], ["Fin", quote.endDate], ["Duración", durationLabel(quote.startDate, quote.endDate)]].map(([k, v]) => (
+              {[["Inicio", formatearFecha(quote.startDate)], ["Fin", formatearFecha(quote.endDate)], ["Duración", durationLabel(quote.startDate, quote.endDate)]].map(([k, v]) => (
                 <div key={k} className="flex justify-between">
                   <span className="text-xs text-gray-400">{k}</span>
                   <span className="text-xs font-semibold text-gray-900">{v}</span>
@@ -753,15 +770,6 @@ function QuoteDetail({ quote, contacts, onBack, onEdit, onCancel }: {
               <span className="text-white text-xl font-bold" style={{ fontFamily: "Outfit, sans-serif" }}>{fmt(total)}</span>
             </div>
           </div>
-
-          {isConvertible && (
-            <div className="bg-gradient-to-r from-[#ffbc07]/20 to-[#ffbc07]/5 border border-[#ffbc07] rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-              <div className="flex-1">
-                <p className="text-sm font-bold text-[#102c4d]" style={{ fontFamily: "Outfit, sans-serif" }}>¿Lista para concretar?</p>
-                <p className="text-xs text-gray-600 mt-0.5">Convertir en alquiler estará disponible cuando conectemos ese módulo.</p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -1033,9 +1041,9 @@ export default function QuotesModule() {
                     <div className="text-xs text-gray-400">{ct?.company}</div>
                   </td>
                   <td className="px-4 py-3.5 text-xs text-gray-600">{q.employee}</td>
-                  <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{q.createdAt}</td>
+                  <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{formatearFecha(q.createdAt)}</td>
                   <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">
-                    {q.startDate} <span className="text-gray-300 mx-1">→</span> {q.endDate}
+                    {formatearFecha(q.startDate)} <span className="text-gray-300 mx-1">→</span> {formatearFecha(q.endDate)}
                   </td>
                   <td className="px-4 py-3.5 font-bold text-[#102c4d] whitespace-nowrap">{fmt(total)}</td>
                   <td className="px-4 py-3.5"><StatusBadge status={q.status} /></td>

@@ -34,14 +34,14 @@ export function useEmpleados() {
 
   async function crear(datos: DatosEmpleado) {
     const { error } = await supabase.from("tbempleado").insert({ ...datos, estado: true });
-    if (error) return { error: error.message };
+    if (error) return { error: traducirError(error) };
     await cargar();
     return { error: null };
   }
 
   async function editar(idempleado: number, datos: DatosEmpleado) {
     const { error } = await supabase.from("tbempleado").update(datos).eq("idempleado", idempleado);
-    if (error) return { error: error.message };
+    if (error) return { error: traducirError(error) };
     await cargar();
     return { error: null };
   }
@@ -54,4 +54,21 @@ export function useEmpleados() {
   }
 
   return { empleados, loading, error, crear, editar, cambiarEstado, recargar: cargar };
+}
+
+function traducirError(error: { code?: string; message: string }): string {
+  // Valores duplicados en campos únicos
+  if (error.code === "23505") {
+    if (error.message.includes("tbempleado_dpi_key")) {
+      return "Este DPI ya está registrado para otro empleado.";
+    }
+
+    if (error.message.includes("tbempleado_correo_key")) {
+      return "Este correo ya está registrado para otro empleado.";
+    }
+
+    return "Ya existe un registro con esos datos. Verifica la información.";
+  }
+
+  return "Ocurrió un error al guardar el empleado. Inténtalo nuevamente.";
 }

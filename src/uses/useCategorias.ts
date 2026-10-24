@@ -26,7 +26,7 @@ export function useCategorias() {
 
   async function crear(nombre: string) {
     const { error } = await supabase.from("tbcategoria").insert({ nombre, estado: true });
-    if (error) return { error: error.message };
+    if (error) return { error: traducirError(error) };
     await cargar();
     return { error: null };
   }
@@ -36,7 +36,7 @@ export function useCategorias() {
       .from("tbcategoria")
       .update({ nombre })
       .eq("idcategoria", idcategoria);
-    if (error) return { error: error.message };
+    if (error) return { error: traducirError(error) };
     await cargar();
     return { error: null };
   }
@@ -52,4 +52,17 @@ export function useCategorias() {
   }
 
   return { categorias, loading, error, crear, editar, cambiarEstado, recargar: cargar };
+}
+
+function traducirError(error: { code?: string; message: string }): string {
+  // Valores duplicados en campos únicos
+  if (error.code === "23505") {
+    if (error.message.includes("tbcategoria_nombre_key")) {
+      return "Esta categoría ya está registrada.";
+    }
+
+    return "Ya existe un registro con esos datos. Verifica la información.";
+  }
+
+  return "Ocurrió un error al guardar la categoría. Inténtalo nuevamente.";
 }

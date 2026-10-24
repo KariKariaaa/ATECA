@@ -10,6 +10,7 @@ import { useEstadosCotizacion } from "./uses/useEstadosCotizacion";
 import { useAlquileres } from "./uses/useAlquileres";
 import { useEstadosAlquiler } from "./uses/useEstadosAlquiler";
 import type { Activo, Contacto, Empleado, TarifaActivo, DetalleAlquiler } from "../types/inventory";
+import { formatearFecha } from "../types/format";
 
 // ── Helpers de formato y fecha ──────────────────────────────────────────────────
 
@@ -23,9 +24,14 @@ function totalDays(startDate: string, endDate: string) {
 function durationParts(days: number) {
   const months = Math.floor(days / 30);
   const weeks = Math.floor((days % 30) / 7);
-  return { months, weeks, days: days % 7 };
-}
+  const extraDays = (days % 30) % 7;
 
+  return {
+    months,
+    weeks,
+    days: extraDays,
+  };
+}
 function durationLabel(startDate: string, endDate: string) {
   const p = durationParts(totalDays(startDate, endDate));
   const labels = [
@@ -39,17 +45,39 @@ function durationLabel(startDate: string, endDate: string) {
 // Misma fórmula que usamos en Cotizaciones -- pendiente de
 // confirmar en la reunión que mencionaste, la dejo igual en
 // ambos módulos por consistencia mientras tanto.
-function calcularSubtotal(tarifa: { preciosemana: number; preciomes: number; preciodiaunico: number; preciodiaextra: number }, startDate: string, endDate: string, descuento: number) {
+
+function calcularSubtotal(
+  tarifa: {
+    preciosemana: number;
+    preciomes: number;
+    preciodiaunico: number;
+    preciodiaextra: number;
+  },
+  startDate: string,
+  endDate: string,
+  descuento: number
+) {
   const days = totalDays(startDate, endDate);
-  const { months, weeks, days: rem } = durationParts(days);
-  const dayCost = days === 1
-    ? tarifa.preciodiaunico
-    : months === 0 && weeks === 0
-      ? tarifa.preciodiaunico + (days - 1) * tarifa.preciodiaextra
-      : rem * tarifa.preciodiaextra;
-  const bruto = months * tarifa.preciomes + weeks * tarifa.preciosemana + dayCost;
+
+  if (days <= 0) return 0;
+
+  const { months, weeks, days: extraDays } = durationParts(days);
+
+  // El precio de día único solo se utiliza
+  // cuando el alquiler dura exactamente un día.
+  const dayCost =
+    days === 1
+      ? tarifa.preciodiaunico
+      : extraDays * tarifa.preciodiaextra;
+
+  const bruto =
+    months * tarifa.preciomes +
+    weeks * tarifa.preciosemana +
+    dayCost;
+
   return Math.max(0, bruto - descuento);
 }
+
 
 function relatedOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
@@ -268,7 +296,7 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
             <RentalBadge status={status} />
             {rental.idcotizacion && <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-mono">Origen: COT-{String(rental.idcotizacion).padStart(4, "0")}</span>}
           </div>
-          <p className="text-gray-400 text-sm mt-0.5">{rental.empleado ? displayEmployee(rental.empleado) : "—"} · Iniciado {rental.fechainicio}</p>
+          <p className="text-gray-400 text-sm mt-0.5">{rental.empleado ? displayEmployee(rental.empleado) : "—"} · Iniciado {formatearFecha(rental.fechainicio)}</p>
         </div>
       </div>
 
@@ -297,7 +325,7 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Fechas</p>
-            {[["Inicio", rental.fechainicio], ["Fin estimado", rental.fechafinestimada], ["Fin real", rental.fechafinreal ?? "—"]].map(([k, v]) => (
+            {[["Inicio", formatearFecha(rental.fechainicio)], ["Fin estimado", formatearFecha(rental.fechafinestimada)], ["Fin real", formatearFecha(rental.fechafinreal) ?? "—"]].map(([k, v]) => (
               <div key={k} className="flex justify-between items-center">
                 <span className="text-xs text-gray-400">{k}</span>
                 <span className="text-xs font-semibold text-gray-900">{v}</span>
@@ -351,7 +379,7 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
                       <td className="px-4 py-3.5"><span className="text-xs bg-[#102c4d]/8 text-[#102c4d] px-2 py-0.5 rounded-full font-semibold">{line.activo?.categoria?.nombre ?? "—"}</span></td>
                       <td className="px-4 py-3.5 text-xs whitespace-nowrap">
                         {line.fechadevolucion
-                          ? <span className={line.estadodevuelto === false ? "text-red-600 font-semibold" : "text-emerald-600 font-semibold"}>{line.fechadevolucion}</span>
+                          ? <span className={line.estadodevuelto === false ? "text-red-600 font-semibold" : "text-emerald-600 font-semibold"}>{formatearFecha(line.fechadevolucion)}</span>
                           : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-3.5"><div className="font-bold text-[#102c4d] text-sm">{fmt(line.subtotal)}</div></td>
@@ -970,13 +998,13 @@ function QRScannerView() {
                     <div className="flex justify-between"><span className="text-gray-500 text-xs">Alquiler</span><span className="font-mono text-xs font-bold text-[#102c4d]">{resultado.alquilerActivo.numero}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500 text-xs">Cliente</span><span className="text-xs font-semibold">{resultado.alquilerActivo.contacto}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500 text-xs">Empresa</span><span className="text-xs text-gray-700">{resultado.alquilerActivo.empresa ?? "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500 text-xs">Inicio</span><span className="text-xs font-semibold">{resultado.alquilerActivo.fechainicio}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500 text-xs">Devol. est.</span><span className="text-xs font-semibold">{resultado.alquilerActivo.fechafinestimada}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500 text-xs">Inicio</span><span className="text-xs font-semibold">{(formatearFecha(resultado.alquilerActivo.fechainicio))}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500 text-xs">Devol. est.</span><span className="text-xs font-semibold">{(formatearFecha(resultado.alquilerActivo.fechafinestimada))}</span></div>
                   </div>
                   <div className="bg-white border border-amber-200 rounded-xl px-4 py-3 flex items-center justify-between mt-2">
                     <div>
                       <div className="text-xs text-gray-400 uppercase tracking-wider">Costo acumulado</div>
-                      <div className="text-xs text-gray-400">desde {resultado.alquilerActivo.fechainicio}</div>
+                      <div className="text-xs text-gray-400">desde {(formatearFecha(resultado.alquilerActivo.fechainicio))}</div>
                     </div>
                     <div className="text-2xl font-bold text-[#102c4d]" style={{ fontFamily: "Outfit, sans-serif" }}>{fmt(resultado.alquilerActivo.costoAcumulado)}</div>
                   </div>
@@ -1007,7 +1035,7 @@ type RentalTab = "list" | "scanner";
 
 export default function RentalsModule() {
   const [tab, setTab] = useState<RentalTab>("list");
-  const { alquileres, loading, error } = useAlquileres();
+  const { alquileres, loading, error, recargar } = useAlquileres();
   const [filterStatus, setFilterStatus] = useState("");
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
@@ -1023,9 +1051,9 @@ export default function RentalsModule() {
       if (filterTo && r.fechainicio > filterTo) return false;
       return true;
     }), [rows, filterStatus, filterFrom, filterTo]);
-
+ 
   if (detailId !== null) {
-    return <RentalDetail idalquiler={detailId} onBack={() => setDetailId(null)} />;
+    return <RentalDetail idalquiler={detailId} onBack={() => { void recargar(); setDetailId(null); }} />;
   }
 
   return (
@@ -1093,9 +1121,9 @@ export default function RentalsModule() {
                         <div className="font-medium text-gray-900 text-sm">{r.contacto?.nombre} {r.contacto?.apellido}</div>
                         <div className="text-xs text-gray-400">{r.contacto?.empresa?.nombre ?? "—"}</div>
                       </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{r.fechainicio}</td>
-                      <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{r.fechafinestimada}</td>
-                      <td className="px-4 py-3.5 text-xs whitespace-nowrap">{r.fechafinreal ? <span className="text-emerald-600 font-semibold">{r.fechafinreal}</span> : <span className="text-gray-400">—</span>}</td>
+                      <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{(formatearFecha(r.fechainicio))}</td>
+                      <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{(formatearFecha(r.fechafinestimada))}</td>
+                      <td className="px-4 py-3.5 text-xs whitespace-nowrap">{formatearFecha(r.fechafinreal) ? <span className="text-emerald-600 font-semibold">{formatearFecha(r.fechafinreal)}</span> : <span className="text-gray-400">—</span>}</td>
                       <td className="px-4 py-3.5 font-semibold text-gray-900 whitespace-nowrap">{fmt(r.totalestimado)}</td>
                       <td className="px-4 py-3.5 whitespace-nowrap"><span className="font-bold text-emerald-700">{fmt(r.totalreal)}</span></td>
                       <td className="px-4 py-3.5"><RentalBadge status={status} /></td>
@@ -1121,8 +1149,8 @@ export default function RentalsModule() {
                     <div className="text-xs text-gray-400">{r.contacto?.empresa?.nombre ?? "—"}</div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div><div className="text-gray-400">Inicio</div><div className="font-semibold text-gray-700">{r.fechainicio}</div></div>
-                    <div><div className="text-gray-400">Fin est.</div><div className="font-semibold text-gray-700">{r.fechafinestimada}</div></div>
+                    <div><div className="text-gray-400">Inicio</div><div className="font-semibold text-gray-700">{formatearFecha(r.fechainicio)}</div></div>
+                    <div><div className="text-gray-400">Fin est.</div><div className="font-semibold text-gray-700">{formatearFecha(r.fechafinestimada)}</div></div>
                     <div><div className="text-gray-400">Total est.</div><div className="font-bold text-[#102c4d]">{fmt(r.totalestimado)}</div></div>
                     <div><div className="text-gray-400">Total real</div><div className="font-bold text-emerald-700">{fmt(r.totalreal)}</div></div>
                   </div>
@@ -1134,7 +1162,7 @@ export default function RentalsModule() {
         )}
       </div>
 
-      {showCreate && <CreateRentalWizard onClose={() => setShowCreate(false)} onSaved={() => setShowCreate(false)} />}
+      {showCreate && <CreateRentalWizard onClose={() => setShowCreate(false)} onSaved={() => { void recargar(); setShowCreate(false); }} />}
     </div>
   );
 }

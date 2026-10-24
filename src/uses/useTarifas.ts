@@ -17,6 +17,41 @@ interface DatosTarifa {
   fechainicio: string;
 }
 
+
+function traducirErrorTarifa(error: {
+  code?: string;
+  message: string;
+}): string {
+  if (error.code === "23514") {
+    const mensaje = error.message;
+
+    if (mensaje.includes("preciomes")) {
+      return "El precio por mes no puede ser negativo.";
+    }
+
+    if (mensaje.includes("preciosemana")) {
+      return "El precio por semana no puede ser negativo.";
+    }
+
+    if (mensaje.includes("preciodiaunico")) {
+      return "El precio por día único no puede ser negativo.";
+    }
+
+    if (mensaje.includes("preciodiaextra")) {
+      return "El precio por día extra no puede ser negativo.";
+    }
+
+    if (mensaje.includes("chk_tarifa_fechas")) {
+      return "La fecha de fin no puede ser anterior a la fecha de inicio.";
+    }
+
+    return "Los datos de la tarifa no cumplen con las validaciones.";
+  }
+
+  return "Ocurrió un error al guardar la tarifa. Inténtalo nuevamente.";
+}
+
+
 export function useTarifas() {
   const [tarifas, setTarifas] = useState<TarifaActivo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +93,7 @@ export function useTarifas() {
       .eq("idcategoria", nueva.idcategoria)
       .is("fechafin", null);
 
-    if (closeError) return { error: closeError.message };
+    if (closeError) return { error: traducirErrorTarifa(closeError) };
 
     // 2. Inserta la nueva tarifa como vigente.
     const { error } = await supabase.from("tbtarifaactivo").insert({
@@ -67,7 +102,7 @@ export function useTarifas() {
       estado: true,
     });
 
-    if (error) return { error: error.message };
+    if (error) return { error: traducirErrorTarifa(error) };
     await cargar();
     return { error: null };
   }

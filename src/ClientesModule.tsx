@@ -2,6 +2,17 @@ import { useState, useMemo } from "react";
 import { useEmpresas } from "./uses/useEmpresas";
 import { useContactos } from "./uses/useContactos";
 import type { Empresa, Contacto } from "../types/inventory";
+import {
+  validarDpi,
+  validarTelefono,
+  validarCorreo,
+  validarNit,
+  normalizarDigitos,
+  normalizarCorreo,
+  DPI_DIGITOS,
+  TELEFONO_DIGITOS,
+  NIT_DIGITOS,
+} from "./lib/validators";
 
 // ── Shared UI (mismo patrón que AssetsModule.tsx) ───────────────────────────────
 
@@ -74,6 +85,8 @@ const IcoBuilding = () => <svg viewBox="0 0 20 20" fill="currentColor" className
 const IcoUser = () => <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>;
 
 // ── Empresas ───────────────────────────────────────────────────────────────────
+const inputErrorCls =
+  " border-red-300 focus:border-red-400 focus:ring-red-100";
 
 function EmpresaModal({ onClose, initial, onSave }: {
   onClose: () => void;
@@ -90,20 +103,52 @@ function EmpresaModal({ onClose, initial, onSave }: {
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const [fieldErrors, setFieldErrors] = useState<{
+    nit?: string;
+    telefono?: string;
+    correo?: string;
+  }>({});
+
+  const set = (k: string, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((e) => ({ ...e, [k]: undefined }));
+  };
 
   async function guardar() {
-    if (!form.nombre.trim()) { setError("El nombre es obligatorio."); return; }
+    if (!form.nombre.trim()) {
+      setError("El nombre es obligatorio.");
+      return;
+    }
+
+    const errores = {
+      nit: validarNit(form.nit) ?? undefined,
+      telefono: validarTelefono(form.telefono) ?? undefined,
+      correo: validarCorreo(form.correo) ?? undefined,
+    };
+
+    if (errores.nit || errores.telefono || errores.correo) {
+      setFieldErrors(errores);
+      setError(null);
+      return;
+    }
+
     setSaving(true);
+
     const resultado = await onSave({
       nombre: form.nombre.trim(),
-      direccion: form.direccion || null,
-      nit: form.nit || null,
-      telefono: form.telefono || null,
-      correo: form.correo || null,
+      direccion: form.direccion.trim() || null,
+      nit: normalizarDigitos(form.nit),
+      telefono: normalizarDigitos(form.telefono),
+      correo: normalizarCorreo(form.correo),
     });
+
     setSaving(false);
-    if (resultado.error) { setError(resultado.error); return; }
+
+    if (resultado.error) {
+      setError(resultado.error);
+      return;
+    }
+
     onClose();
   }
 
@@ -117,14 +162,50 @@ function EmpresaModal({ onClose, initial, onSave }: {
           </Field>
         </div>
         <Field label="NIT">
-          <input className={inputCls} value={form.nit} onChange={(e) => set("nit", e.target.value)} placeholder="Ej. 123456-7" />
+          <input
+            className={inputCls + (fieldErrors.nit ? inputErrorCls : "")}
+            value={form.nit}
+            onChange={(e) => set("nit", e.target.value)}
+            inputMode="numeric"
+            maxLength={10}
+            placeholder={`${NIT_DIGITOS} dígitos`}
+          />
+          {fieldErrors.nit && (
+            <p className="text-xs text-red-600 mt-1">
+              {fieldErrors.nit}
+            </p>
+          )}
         </Field>
+
         <Field label="Teléfono">
-          <input className={inputCls} value={form.telefono} onChange={(e) => set("telefono", e.target.value)} placeholder="Ej. 5555-1234" />
+          <input
+            className={inputCls + (fieldErrors.telefono ? inputErrorCls : "")}
+            value={form.telefono}
+            onChange={(e) => set("telefono", e.target.value)}
+            inputMode="tel"
+            maxLength={20}
+            placeholder={`${TELEFONO_DIGITOS} dígitos`}
+          />
+          {fieldErrors.telefono && (
+            <p className="text-xs text-red-600 mt-1">
+              {fieldErrors.telefono}
+            </p>
+          )}
         </Field>
         <div className="md:col-span-2">
           <Field label="Correo">
-            <input type="email" className={inputCls} value={form.correo} onChange={(e) => set("correo", e.target.value)} placeholder="contacto@empresa.com" />
+            <input
+              type="email"
+              className={inputCls + (fieldErrors.correo ? inputErrorCls : "")}
+              value={form.correo}
+              onChange={(e) => set("correo", e.target.value)}
+              placeholder="contacto@empresa.com"
+            />
+            {fieldErrors.correo && (
+              <p className="text-xs text-red-600 mt-1">
+                {fieldErrors.correo}
+              </p>
+            )}
           </Field>
         </div>
         <div className="md:col-span-2">
@@ -297,25 +378,54 @@ function ContactoModal({ onClose, empresas, initial, onSave }: {
   });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const [fieldErrors, setFieldErrors] = useState<{
+    dpi?: string;
+    telefono?: string;
+    correo?: string;
+  }>({});
+
+  const set = (k: string, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((e) => ({ ...e, [k]: undefined }));
+  };
 
   async function guardar() {
     if (!form.nombre.trim() || !form.apellido.trim()) {
       setError("Nombre y apellido son obligatorios.");
       return;
     }
+
+    const errores = {
+      dpi: validarDpi(form.dpi) ?? undefined,
+      telefono: validarTelefono(form.telefono) ?? undefined,
+      correo: validarCorreo(form.correo) ?? undefined,
+    };
+
+    if (errores.dpi || errores.telefono || errores.correo) {
+      setFieldErrors(errores);
+      setError(null);
+      return;
+    }
+
     setSaving(true);
+
     const resultado = await onSave({
       idempresa: form.idempresa ? Number(form.idempresa) : null,
-      cargo: form.cargo || null,
+      cargo: form.cargo.trim() || null,
       nombre: form.nombre.trim(),
       apellido: form.apellido.trim(),
-      dpi: form.dpi || null,
-      correo: form.correo || null,
-      telefono: form.telefono || null,
+      dpi: normalizarDigitos(form.dpi),
+      correo: normalizarCorreo(form.correo),
+      telefono: normalizarDigitos(form.telefono),
     });
+
     setSaving(false);
-    if (resultado.error) { setError(resultado.error); return; }
+
+    if (resultado.error) {
+      setError(resultado.error);
+      return;
+    }
+
     onClose();
   }
 
@@ -341,14 +451,49 @@ function ContactoModal({ onClose, empresas, initial, onSave }: {
           </select>
         </Field>
         <Field label="DPI">
-          <input className={inputCls} value={form.dpi} onChange={(e) => set("dpi", e.target.value)} placeholder="0000 00000 0000" />
+          <input
+            className={inputCls + (fieldErrors.dpi ? inputErrorCls : "")}
+            value={form.dpi}
+            onChange={(e) => set("dpi", e.target.value)}
+            inputMode="numeric"
+            maxLength={15}
+            placeholder={`${DPI_DIGITOS} dígitos`}
+          />
+          {fieldErrors.dpi && (
+            <p className="text-xs text-red-600 mt-1">
+              {fieldErrors.dpi}
+            </p>
+          )}
         </Field>
         <Field label="Teléfono">
-          <input className={inputCls} value={form.telefono} onChange={(e) => set("telefono", e.target.value)} placeholder="Ej. 5555-1234" />
+          <input
+            className={inputCls + (fieldErrors.telefono ? inputErrorCls : "")}
+            value={form.telefono}
+            onChange={(e) => set("telefono", e.target.value)}
+            inputMode="tel"
+            maxLength={20}
+            placeholder={`${TELEFONO_DIGITOS} dígitos`}
+          />
+          {fieldErrors.telefono && (
+            <p className="text-xs text-red-600 mt-1">
+              {fieldErrors.telefono}
+            </p>
+          )}
         </Field>
         <div className="md:col-span-2">
           <Field label="Correo">
-            <input type="email" className={inputCls} value={form.correo} onChange={(e) => set("correo", e.target.value)} placeholder="correo@ejemplo.com" />
+            <input
+              type="email"
+              className={inputCls + (fieldErrors.correo ? inputErrorCls : "")}
+              value={form.correo}
+              onChange={(e) => set("correo", e.target.value)}
+              placeholder="correo@ejemplo.com"
+            />
+            {fieldErrors.correo && (
+              <p className="text-xs text-red-600 mt-1">
+                {fieldErrors.correo}
+              </p>
+            )}
           </Field>
         </div>
       </div>

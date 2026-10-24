@@ -39,6 +39,23 @@ interface DatosActivo {
   codigoqr?: string | null;
 }
 
+function traducirError(error: { code?: string; message: string }): string {
+  // Valores duplicados en campos únicos
+  if (error.code === "23505") {
+    if (error.message.includes("tbactivo_nombre_key")) {
+      return "Este nombre ya está registrado para otro activo.";
+    }
+
+    if (error.message.includes("tbactivo_codigoqr_key")) {
+      return "Este código QR ya está registrado para otro activo.";
+    }
+
+    return "Ya existe un registro con esos datos. Verifica la información.";
+  }
+
+  return "Ocurrió un error al guardar el activo. Inténtalo nuevamente.";
+}
+
 export function useActivos() {
   const [activos, setActivos] = useState<Activo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,14 +101,22 @@ export function useActivos() {
         codigoqr,
       });
 
-    return {
-      error: error?.message ?? null,
-    };
+    if (error) {
+      return { error: traducirError(error) };
+    }
+
+    await cargar();
+    return { error: null };
   };
 
   async function editar(idactivo: number, cambios: Partial<DatosActivo>) {
-    const { error } = await supabase.from("tbactivo").update(cambios).eq("idactivo", idactivo);
-    if (error) return { error: error.message };
+    const { error } = await supabase
+      .from("tbactivo")
+      .update(cambios)
+      .eq("idactivo", idactivo);
+
+    if (error) return { error: traducirError(error) };
+
     await cargar();
     return { error: null };
   }

@@ -86,6 +86,10 @@ const IcoKey = () => <svg viewBox="0 0 20 20" fill="currentColor" className="w-4
 const IcoShield = () => <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>;
 
 // ── Empleados ──────────────────────────────────────────────────────────────────
+// Agrega este import al inicio de ConfigModule.tsx:
+import { validarDpi, validarTelefono, validarCorreo, normalizarDigitos, normalizarCorreo, DPI_DIGITOS, TELEFONO_DIGITOS } from "./lib/validators";
+
+const inputErrorCls = " border-red-300 focus:border-red-400 focus:ring-red-100";
 
 function EmpleadoModal({ onClose, initial, tieneUsuario, onSave }: {
   onClose: () => void;
@@ -102,21 +106,41 @@ function EmpleadoModal({ onClose, initial, tieneUsuario, onSave }: {
     dpi: initial?.dpi ?? "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ dpi?: string; telefono?: string; correo?: string }>({});
   const [saving, setSaving] = useState(false);
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Al escribir en un campo se limpia su error, para no dejar el mensaje
+  // rojo pegado mientras el usuario ya está corrigiendo.
+  const set = (k: string, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((e) => ({ ...e, [k]: undefined }));
+  };
 
   async function guardar() {
     if (!form.nombre.trim() || !form.apellido.trim()) {
       setError("Nombre y apellido son obligatorios.");
       return;
     }
+
+    const errores = {
+      dpi: validarDpi(form.dpi) ?? undefined,
+      telefono: validarTelefono(form.telefono) ?? undefined,
+      // Si ya tiene usuario, el correo está bloqueado y no se toca.
+      correo: tieneUsuario ? undefined : validarCorreo(form.correo) ?? undefined,
+    };
+    if (errores.dpi || errores.telefono || errores.correo) {
+      setFieldErrors(errores);
+      setError(null);
+      return;
+    }
+
     setSaving(true);
     const resultado = await onSave({
       nombre: form.nombre.trim(),
       apellido: form.apellido.trim(),
-      telefono: form.telefono || null,
-      correo: form.correo || null,
-      dpi: form.dpi || null,
+      telefono: normalizarDigitos(form.telefono),
+      dpi: normalizarDigitos(form.dpi),
+      correo: tieneUsuario ? initial?.correo ?? null : normalizarCorreo(form.correo),
     });
     setSaving(false);
     if (resultado.error) { setError(resultado.error); return; }
@@ -134,10 +158,26 @@ function EmpleadoModal({ onClose, initial, tieneUsuario, onSave }: {
           <input className={inputCls} value={form.apellido} onChange={(e) => set("apellido", e.target.value)} placeholder="Ej. López" />
         </Field>
         <Field label="DPI">
-          <input className={inputCls} value={form.dpi} onChange={(e) => set("dpi", e.target.value)} placeholder="0000 00000 0000" />
+          <input
+            className={inputCls + (fieldErrors.dpi ? inputErrorCls : "")}
+            value={form.dpi}
+            onChange={(e) => set("dpi", e.target.value)}
+            inputMode="numeric"
+            maxLength={15}
+            placeholder={`${DPI_DIGITOS} dígitos`}
+          />
+          {fieldErrors.dpi && <p className="text-xs text-red-600 mt-1">{fieldErrors.dpi}</p>}
         </Field>
         <Field label="Teléfono">
-          <input className={inputCls} value={form.telefono} onChange={(e) => set("telefono", e.target.value)} placeholder="Ej. 5555-1234" />
+          <input
+            className={inputCls + (fieldErrors.telefono ? inputErrorCls : "")}
+            value={form.telefono}
+            onChange={(e) => set("telefono", e.target.value)}
+            inputMode="tel"
+            maxLength={20}
+            placeholder={`${TELEFONO_DIGITOS} dígitos`}
+          />
+          {fieldErrors.telefono && <p className="text-xs text-red-600 mt-1">{fieldErrors.telefono}</p>}
         </Field>
         <div className="md:col-span-2">
           <Field label="Correo">
@@ -145,13 +185,22 @@ function EmpleadoModal({ onClose, initial, tieneUsuario, onSave }: {
               <>
                 <input className={inputDisabledCls} value={form.correo} disabled />
                 <p className="text-xs text-amber-600 mt-1.5">
-                  Este correo no puede ser editado porque ya tiene una cuenta de usuario asociada
-                  (es el correo con el que inicia sesión). Si necesita editarlo, contacte con soporte
-                  técnico para actualizarlo.
+                  Este correo no se puede editar aquí porque ya tiene una cuenta de Usuario asociada
+                  (es el correo con el que inicia sesión). Si en verdad necesita cambiar, contacta soporte
+                  técnico para actualizarlo también en Supabase Auth.
                 </p>
               </>
             ) : (
-              <input type="email" className={inputCls} value={form.correo} onChange={(e) => set("correo", e.target.value)} placeholder="correo@empresa.com" />
+              <>
+                <input
+                  type="email"
+                  className={inputCls + (fieldErrors.correo ? inputErrorCls : "")}
+                  value={form.correo}
+                  onChange={(e) => set("correo", e.target.value)}
+                  placeholder="correo@empresa.com"
+                />
+                {fieldErrors.correo && <p className="text-xs text-red-600 mt-1">{fieldErrors.correo}</p>}
+              </>
             )}
           </Field>
         </div>
@@ -337,7 +386,14 @@ function UsuarioCrearModal({ onClose, empleadosDisponibles, roles, onSave }: {
           </Field>
           {empleadoSel && (
             <p className="text-xs text-gray-400 mt-1.5">
-              El acceso quedará ligado al correo: <span className="font-semibold text-gray-600">{empleadoSel.correo ?? "— (registra un correo antes)"}</span>
+              El acceso quedará ligado al correo:{" "}
+              <span className="font-semibold text-gray-600">
+                {empleadoSel.correo ?? (
+                  <span className="text-red-500">
+                    (registra un correo antes)
+                  </span>
+                )}
+              </span>
             </p>
           )}
         </div>

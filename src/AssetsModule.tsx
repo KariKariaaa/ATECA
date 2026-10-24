@@ -4,7 +4,7 @@ import { useActivos, useEstadosActivo } from "./uses/useActivos";
 import { useTarifas } from "./uses/useTarifas";
 import { useMantenimientos } from "./uses/useMantenimientos";
 import type { Activo, Categoria } from "../types/inventory";
-import { fmtQ } from "../types/format";
+import { fmtQ, formatearFecha } from "../types/format";
 import { QRCodeSVG } from "qrcode.react";
 
 // ── Shared UI ──────────────────────────────────────────────────────────────────
@@ -505,11 +505,50 @@ function RatesView() {
   const [saving, setSaving] = useState(false);
   const setF = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  function obtenerFechaHoy() {
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, "0");
+    const dia = String(hoy.getDate()).padStart(2, "0");
+
+    return `${anio}-${mes}-${dia}`;
+  }
+
+  function cerrarModal() {
+    setShowModal(false);
+    setFormError(null);
+    setForm({
+      idcategoria: "",
+      preciosemana: "",
+      preciomes: "",
+      preciodiaunico: "",
+      preciodiaextra: "",
+      fechainicio: "",
+    });
+    setSaving(false);
+  }
+
   const hasActive = form.idcategoria ? tieneVigente(Number(form.idcategoria)) : false;
 
   async function guardar() {
     if (!form.idcategoria || !form.fechainicio || !form.preciosemana || !form.preciomes || !form.preciodiaunico || !form.preciodiaextra) {
       setFormError("Todos los campos son obligatorios.");
+      return;
+    }
+
+    const precios = [
+      { nombre: "Precio por semana", valor: form.preciosemana },
+      { nombre: "Precio por mes", valor: form.preciomes },
+      { nombre: "Precio por día único", valor: form.preciodiaunico },
+      { nombre: "Precio por día extra", valor: form.preciodiaextra },
+    ];
+
+    const precioNegativo = precios.find(
+      (p) => Number(p.valor) < 0
+    );
+
+    if (precioNegativo) {
+      setFormError(`${precioNegativo.nombre} no puede ser negativo.`);
       return;
     }
     setSaving(true);
@@ -523,8 +562,7 @@ function RatesView() {
     });
     setSaving(false);
     if (resultado.error) { setFormError(resultado.error); return; }
-    setShowModal(false);
-    setForm({ idcategoria: "", preciosemana: "", preciomes: "", preciodiaunico: "", preciodiaextra: "", fechainicio: "" });
+    cerrarModal();
   }
 
   return (
@@ -534,7 +572,20 @@ function RatesView() {
           <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>Tarifas</h2>
           <p className="text-gray-400 text-sm">Precios por categoría (Quetzales) · Las tarifas anteriores se mantienen como históricas</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors" style={{ fontFamily: "Outfit, sans-serif" }}>
+        <button 
+        onClick={() => {
+          setForm({
+            idcategoria: "",
+            preciosemana: "",
+            preciomes: "",
+            preciodiaunico: "",
+            preciodiaextra: "",
+            fechainicio: obtenerFechaHoy(),
+          });
+          setFormError(null);
+          setShowModal(true);
+        }}
+        className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors" style={{ fontFamily: "Outfit, sans-serif" }}>
           <IcoPlus /> Nueva Tarifa
         </button>
       </div>
@@ -563,8 +614,14 @@ function RatesView() {
                 <td className="px-4 py-3.5 font-semibold text-gray-900">{fmtQ(r.preciomes)}</td>
                 <td className="px-4 py-3.5 font-semibold text-gray-900">{fmtQ(r.preciodiaunico)}</td>
                 <td className="px-4 py-3.5 font-semibold text-gray-900">{fmtQ(r.preciodiaextra)}</td>
-                <td className="px-4 py-3.5 text-xs text-gray-600">{r.fechainicio}</td>
-                <td className="px-4 py-3.5 text-xs text-gray-600">{r.fechafin ?? <span className="text-emerald-600 font-semibold">Vigente</span>}</td>
+                <td className="px-4 py-3.5 text-xs text-gray-600">
+                  {formatearFecha(r.fechainicio)}
+                </td>
+                <td className="px-4 py-3.5 text-xs text-gray-600">
+                  {r.fechafin
+                    ? formatearFecha(r.fechafin)
+                    : <span className="text-emerald-600 font-semibold">Vigente</span>}
+                </td>
                 <td className="px-4 py-3.5">
                   {r.estado
                     ? <span className="inline-flex items-center gap-1 text-xs font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full"><IcoCheck />Activa</span>
@@ -602,7 +659,7 @@ function RatesView() {
       </div>
 
       {showModal && (
-        <Modal title="Nueva Tarifa" onClose={() => setShowModal(false)} wide>
+        <Modal title="Nueva Tarifa" onClose={cerrarModal} wide>
           <ErrorBanner message={formError} />
           <div className="space-y-4">
             {hasActive && (
@@ -637,7 +694,12 @@ function RatesView() {
             </div>
           </div>
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-            <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+            <button
+              onClick={cerrarModal}
+              className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
             <button disabled={saving} onClick={guardar} className="px-5 py-2 text-sm font-bold bg-[#ffbc07] text-[#102c4d] rounded-lg hover:bg-[#e5a800] transition-colors disabled:opacity-60" style={{ fontFamily: "Outfit, sans-serif" }}>
               {saving ? "Guardando…" : "Crear Tarifa"}
             </button>
@@ -836,7 +898,7 @@ function MaintenancesView() {
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">{m.activo?.nombre ?? "—"}</div>
                 </td>
-                <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{m.fecha}</td>
+                <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{formatearFecha(m.fecha)}</td>
                 <td className="px-4 py-3.5 text-sm text-gray-700 max-w-xs">{m.descripcion ?? "—"}</td>
                 <td className="px-4 py-3.5 font-semibold text-gray-900 whitespace-nowrap">{fmtQ(m.costo)}</td>
               </tr>
