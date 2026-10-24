@@ -5,6 +5,7 @@ import RentalsModule from "./RentalsModule";
 import ClientsModule from "./ClientesModule";
 import UsuariosModule from"./UsuariosModule";
 import PerfilModals, { type PerfilModalTipo } from "./Perfilmodals";
+import { QRScannerView } from "./RentalsModule";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -948,6 +949,7 @@ const pageTitles: Record<string, string> = {
   pass: "Contraseña",
 };
 
+
 export default function App() {
   return (
     <AuthProvider>
@@ -956,11 +958,20 @@ export default function App() {
   );
 }
 
+
 function AppContent() {
   const { session, perfil, loading, signOut } = useAuth();
   const [activePage, setActivePage] = useState("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [perfilModal, setPerfilModal] = useState<PerfilModalTipo | null>(null);
+
+  const matchQR = window.location.pathname.match(
+    /^\/activo\/([^/]+)\/?$/
+  );
+
+  const codigoQR = matchQR
+    ? decodeURIComponent(matchQR[1])
+    : null;
 
   const handleNav = (id: string) => {
     if (id === "perfil") setPerfilModal("datos");
@@ -978,6 +989,17 @@ function AppContent() {
 
   if (!session) {
     return <LoginScreen />;
+  }
+
+  // Si llegó desde un QR y ya inició sesión,
+  // mostrar directamente la ficha del activo.
+  if (codigoQR) {
+    return (
+      <QRScannerView
+        codigoInicial={codigoQR}
+        soloResultado
+      />
+    );
   }
 
   return (

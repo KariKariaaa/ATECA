@@ -229,6 +229,11 @@ function AssetModal({ onClose, categorias, estados, initial, onSave }: {
   }) => Promise<{ error: string | null }>;
 }) {
   const isEdit = !!initial;
+
+  const urlPublica = initial?.codigoqr
+    ? `${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/activo/${initial.codigoqr}`
+    : "";
+
   const [form, setForm] = useState({
     nombre: initial?.nombre ?? "",
     idcategoria: initial?.idcategoria ? String(initial.idcategoria) : "",
@@ -331,6 +336,10 @@ function AssetModal({ onClose, categorias, estados, initial, onSave }: {
 
             <p className="text-sm font-semibold tracking-wide text-[#102c4d]">
               {initial.codigoqr}
+            </p>
+
+            <p className="text-center text-xs text-gray-500 break-all">
+              {urlPublica}
             </p>
 
             <p className="text-center text-xs text-gray-500">

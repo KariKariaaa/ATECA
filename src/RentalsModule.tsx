@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { useAuth } from "./uses/useAuth";
 import { useContactos } from "./uses/useContactos";
@@ -855,7 +855,13 @@ function CreateRentalWizard({ onClose, onSaved }: { onClose: () => void; onSaved
 
 // ── QR Scanner View ────────────────────────────────────────────────────────────
 
-function QRScannerView() {
+export function QRScannerView({
+  codigoInicial,
+  soloResultado = false,
+}: {
+  codigoInicial?: string;
+  soloResultado?: boolean;
+}) {
   const [code, setCode] = useState("");
   const [resultado, setResultado] = useState<{
     activo: Activo;
@@ -919,6 +925,15 @@ function QRScannerView() {
     setBuscando(false);
   }
 
+  useEffect(() => {
+    if (codigoInicial) {
+      const codigo = codigoInicial.trim().toUpperCase();
+
+      setCode(codigo);
+      void search(codigo);
+    }
+  }, [codigoInicial]);
+
   const statusColor: Record<string, string> = {
     Disponible: "bg-emerald-100 border-emerald-300 text-emerald-800",
     Alquilado: "bg-amber-100 border-amber-300 text-amber-800",
@@ -932,7 +947,9 @@ function QRScannerView() {
         <div className="w-16 h-16 rounded-2xl bg-[#102c4d] flex items-center justify-center mx-auto mb-3">
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-[#ffbc07]"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zm-2 7a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zm8-12a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1V4a1 1 0 00-1-1h-3zm1 2v1h1V5h-1zM9 9a1 1 0 000 2h1a1 1 0 100-2H9zm7 0a1 1 0 10-2 0v1h1a1 1 0 001-1zm-1 4a1 1 0 10-2 0 1 1 0 002 0zm-5 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" /></svg>
         </div>
+        {!soloResultado && (
         <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>Consulta de Activo por QR</h2>
+        )}
         <p className="text-gray-400 text-sm mt-1">Escanea o ingresa el código del activo para ver su estado en tiempo real</p>
       </div>
 
@@ -952,7 +969,7 @@ function QRScannerView() {
           </button>
         </div>
 
-        {activos.length > 0 && (
+        {activos.length > 0 && !soloResultado && (
           <div>
             <p className="text-xs text-gray-400 mb-2">Prueba con:</p>
             <div className="flex flex-wrap gap-2">
@@ -1020,9 +1037,11 @@ function QRScannerView() {
             </div>
           </div>
 
+          {!soloResultado && (
           <button onClick={() => { setResultado(null); setCode(""); setNotFound(false); inputRef.current?.focus(); }} className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors py-2">
             ← Consultar otro activo
           </button>
+          )}
         </div>
       )}
     </div>
