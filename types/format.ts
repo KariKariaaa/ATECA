@@ -32,3 +32,8 @@ export function maintBadge(dueIn: number) {
     return { label: `${dueIn}d`, cls: "bg-amber-100 text-amber-700 border border-amber-200", dot: "bg-amber-400" };
   return null;
 }
+
+export function urlPublicaActivo(codigoqr: string) {
+  const base = (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin).replace(/\/+$/, "");
+  return `${base}/activo/${encodeURIComponent(codigoqr)}`;
+}

@@ -4,7 +4,7 @@ import { useActivos, useEstadosActivo } from "./uses/useActivos";
 import { useTarifas } from "./uses/useTarifas";
 import { useMantenimientos } from "./uses/useMantenimientos";
 import type { Activo, Categoria } from "../types/inventory";
-import { fmtQ, formatearFecha } from "../types/format";
+import { fmtQ, formatearFecha, urlPublicaActivo } from "../types/format";
 import { QRCodeSVG } from "qrcode.react";
 
 // ── Shared UI ──────────────────────────────────────────────────────────────────
@@ -230,9 +230,7 @@ function AssetModal({ onClose, categorias, estados, initial, onSave }: {
 }) {
   const isEdit = !!initial;
 
-  const urlPublica = initial?.codigoqr
-    ? `${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/activo/${initial.codigoqr}`
-    : "";
+  const urlPublica = initial?.codigoqr ? urlPublicaActivo(initial.codigoqr) : "";
 
   const [form, setForm] = useState({
     nombre: initial?.nombre ?? "",
@@ -327,10 +325,7 @@ function AssetModal({ onClose, categorias, estados, initial, onSave }: {
             </h3>
 
             <QRCodeSVG
-              value={initial.codigoqr}
-              size={180}
-              level="M"
-              marginSize={4}
+              value={urlPublica} size={180} level="M" marginSize={4}
               title={`Código QR del activo ${initial.nombre}`}
             />
 
