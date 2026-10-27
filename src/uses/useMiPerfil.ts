@@ -120,6 +120,9 @@ function traducirError(error: { code?: string; message: string }): string {
     if (error.message.includes("tbempleado_dpi_key")) {
       return "Este DPI ya está registrado para otro empleado.";
     }
+    if (error.message.includes("tbempleado_correo_key")) {
+      return "Este correo ya está registrado para otro empleado.";
+    }
     return "Ya existe un registro con esos datos. Verifica la información.";
   }
   if (error.code === "42501") return "No tienes permiso para editar este perfil.";

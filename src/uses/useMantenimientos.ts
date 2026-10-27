@@ -9,6 +9,23 @@ interface DatosMantenimiento {
   costo: number;
 }
 
+function traducirErrorMantenimiento(error: {
+  code?: string;
+  message: string;
+}): string {
+  if (error.code === "23514") {
+    const mensaje = error.message;
+
+    if (mensaje.includes("tbmantenimiento_costo_check")) {
+      return "El costo no puede ser negativo.";
+    }
+
+    return "Los datos del mantenimiento no cumplen con las validaciones.";
+  }
+
+  return "Ocurrió un error al guardar el mantenimiento. Inténtalo nuevamente.";
+}
+
 export function useMantenimientos() {
   const [mantenimientos, setMantenimientos] = useState<Mantenimiento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +59,36 @@ export function useMantenimientos() {
   // uno nuevo, no editando el pasado.
   async function crear(datos: DatosMantenimiento) {
     const { error } = await supabase.from("tbmantenimiento").insert(datos);
-    if (error) return { error: error.message };
+    if (error) return { error: traducirErrorMantenimiento(error) };
     await cargar();
     return { error: null };
   }
 
-  return { mantenimientos, loading, error, crear, recargar: cargar };
+  
+  async function eliminar(idmantenimiento: number) {
+    const { error } = await supabase
+      .from("tbmantenimiento")
+      .delete()
+      .eq("idmantenimiento", idmantenimiento);
+
+    if (error) {
+      return {
+        error: "No se pudo eliminar el mantenimiento. Verifica si existen restricciones o registros relacionados.",
+      };
+    }
+
+    await cargar();
+    return { error: null };
+  }
+
+
+  return {
+    mantenimientos,
+    loading,
+    error,
+    crear,
+    eliminar,
+    recargar: cargar,
+  };
+
 }

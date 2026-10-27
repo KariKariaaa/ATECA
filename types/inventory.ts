@@ -158,12 +158,13 @@ export interface Alquiler {
   fechafinreal: string | null;
   totalestimado: number;
   totalreal: number;
-  // Datos "embebidos" que trae Supabase al pedir la relación
   contacto?: {
     nombre: string;
     apellido: string;
+    dpi?: string | null;
     telefono: string | null;
-    empresa?: { nombre: string } | null;
+    correo?: string | null;
+    empresa?: { nombre: string; nit?: string | null; direccion?: string | null } | null;
   } | null;
   empleado?: { nombre: string; apellido: string } | null;
   estado?: { estadoalquiler: string } | null;
@@ -191,6 +192,7 @@ export interface DetalleAlquiler {
     preciodiaunico: number;
     preciodiaextra: number;
   } | null;
+  danios?: { idregistrodanio: number; descripcion: string; costo: number }[] | null;
 }
 
 export interface RegistroDanio {

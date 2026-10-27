@@ -20,15 +20,14 @@ interface DatosLinea {
   subtotal: number;
 }
 
-// NOTA sobre este hook:
-// - "totalreal" y el "idestadoalquiler" (iniciado/parcial/
-//   completado) NUNCA se calculan ni se envían desde aquí en las
-//   devoluciones -- los mantiene el trigger de la base de datos
-//   (fn_trg_detallealquiler_cambios) apenas cambia una línea.
-//   Este hook solo hace el UPDATE de la línea y vuelve a leer.
-// - "totalestimado" SÍ se calcula en el frontend al crear (una
-//   sola vez, como una cotización congelada) porque ese es el
-//   diseño que definimos: no se recalcula después automáticamente.
+// NOTA: "totalreal" y el estado (iniciado/parcial/completado) los mantienen
+// triggers de la base de datos. La cancelación (cambiarEstado a 'cancelado')
+// también dispara un trigger que libera los activos y, si aplica, devuelve la
+// cotización a 'cotizado' (ver 11-cancelar-alquiler.sql).
+//
+// CAMBIOS en esta versión:
+//  - El contacto trae dpi, correo y los datos de su empresa (para el contrato).
+//  - Cada línea trae sus daños (tbregistrodanio) para mostrarlos junto al subtotal.
 export function useAlquileres() {
   const [alquileres, setAlquileres] = useState<Alquiler[]>([]);
   const [detallesPorAlquiler, setDetallesPorAlquiler] = useState<Map<number, DetalleAlquiler[]>>(new Map());
@@ -45,7 +44,7 @@ export function useAlquileres() {
         `
         idalquiler, idempleado, idcontacto, idcotizacion, idestadoalquiler,
         fechainicio, fechafinestimada, fechafinreal, totalestimado, totalreal,
-        contacto:tbcontacto ( nombre, apellido, telefono, empresa:tbempresa ( nombre ) ),
+        contacto:tbcontacto ( nombre, apellido, dpi, telefono, correo, empresa:tbempresa ( nombre, nit, direccion ) ),
         empleado:tbempleado ( nombre, apellido ),
         estado:tbestadoalquiler ( estadoalquiler )
         `
@@ -74,7 +73,8 @@ export function useAlquileres() {
         iddetallealquiler, idalquiler, idactivo, idtarifaactivo, iddetallecotizacion,
         fechadevolucion, descuento, subtotal, estadodevuelto,
         activo:tbactivo ( nombre, codigoqr, categoria:tbcategoria ( nombre ) ),
-        tarifa:tbtarifaactivo ( idcategoria, preciosemana, preciomes, preciodiaunico, preciodiaextra )
+        tarifa:tbtarifaactivo ( idcategoria, preciosemana, preciomes, preciodiaunico, preciodiaextra ),
+        danios:tbregistrodanio ( idregistrodanio, descripcion, costo )
         `
       )
       .in("idalquiler", rows.map((r) => r.idalquiler));
@@ -120,10 +120,6 @@ export function useAlquileres() {
     return { error: null, idalquiler: data.idalquiler as number };
   }
 
-  // "nuevoSubtotal" ya viene recalculado por el frontend con los
-  // días REALES (fechaInicio del alquiler -> fecha de devolución),
-  // no con la estimación original -- así el trigger que suma
-  // totalreal queda calculando sobre el costo real, no el estimado.
   async function registrarDevolucion(
     iddetallealquiler: number,
     fecha: string,

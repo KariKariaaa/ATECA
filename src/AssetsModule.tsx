@@ -6,6 +6,7 @@ import { useMantenimientos } from "./uses/useMantenimientos";
 import type { Activo, Categoria } from "../types/inventory";
 import { fmtQ, formatearFecha, urlPublicaActivo } from "../types/format";
 import { QRCodeSVG } from "qrcode.react";
+import { Trash } from "lucide-react";
 
 // ── Shared UI ──────────────────────────────────────────────────────────────────
 
@@ -690,9 +691,15 @@ function RatesView() {
               <Field label="Precio por mes (Q)"><input type="number" step="0.01" className={inputCls} value={form.preciomes} onChange={(e) => setF("preciomes", e.target.value)} placeholder="2800.00" /></Field>
               <Field label="Precio día único (Q)"><input type="number" step="0.01" className={inputCls} value={form.preciodiaunico} onChange={(e) => setF("preciodiaunico", e.target.value)} placeholder="150.00" /></Field>
               <Field label="Precio día extra (Q)"><input type="number" step="0.01" className={inputCls} value={form.preciodiaextra} onChange={(e) => setF("preciodiaextra", e.target.value)} placeholder="120.00" /></Field>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-2">          
                 <Field label="Fecha de inicio vigencia">
-                  <input type="date" className={inputCls} value={form.fechainicio} onChange={(e) => setF("fechainicio", e.target.value)} />
+                  <input
+                    type="date"
+                    className={inputCls}
+                    value={form.fechainicio}
+                    min={obtenerFechaHoy()}
+                    onChange={(e) => setF("fechainicio", e.target.value)}
+                  />
                 </Field>
               </div>
             </div>
@@ -779,7 +786,7 @@ function MantenimientoModal({ onClose, activos, activoUrgentesIds, onSave }: {
 }
 
 function MaintenancesView() {
-  const { mantenimientos, loading, error, crear } = useMantenimientos();
+  const { mantenimientos, loading, error, crear, eliminar } = useMantenimientos();
   const { activos } = useActivos();
   const { estados } = useEstadosActivo();
   const [search, setSearch] = useState("");
@@ -845,6 +852,23 @@ function MaintenancesView() {
     return resultado;
   }
 
+  async function handleEliminar(idmantenimiento: number) {
+    const confirmar = window.confirm(
+      "¿Estás segura de que deseas eliminar este mantenimiento? Esta acción no se puede deshacer."
+    );
+
+    if (!confirmar) return;
+
+    const resultado = await eliminar(idmantenimiento);
+
+    if (resultado.error) {
+      window.alert(resultado.error);
+      return;
+    }
+
+    window.alert("Mantenimiento eliminado correctamente.");
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
@@ -887,7 +911,7 @@ function MaintenancesView() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              {["Activo", "Fecha", "Descripción", "Costo"].map((h) => (
+              {["Activo", "Fecha", "Descripción", "Costo", "Acciones"].map((h) => (
                 <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">{h}</th>
               ))}
             </tr>
@@ -905,9 +929,21 @@ function MaintenancesView() {
                 <td className="px-4 py-3.5 text-xs text-gray-600 whitespace-nowrap">{formatearFecha(m.fecha)}</td>
                 <td className="px-4 py-3.5 text-sm text-gray-700 max-w-xs">{m.descripcion ?? "—"}</td>
                 <td className="px-4 py-3.5 font-semibold text-gray-900 whitespace-nowrap">{fmtQ(m.costo)}</td>
+                <td className="px-4 py-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => handleEliminar(m.idmantenimiento)}
+                    disabled={loading}
+                    title="Eliminar mantenimiento"
+                    aria-label="Eliminar mantenimiento"
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    <Trash size={18} />
+                  </button>
+                </td>
               </tr>
             ))}
-            {!loading && filtered.length === 0 && <tr><td colSpan={4} className="text-center py-12 text-gray-400 text-sm">Sin registros.</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={5} className="text-center py-12 text-gray-400 text-sm">Sin registros.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -922,6 +958,15 @@ function MaintenancesView() {
               <span className="text-xs text-gray-400">{m.fecha}</span>
               <span className="font-bold text-[#102c4d] text-sm">{fmtQ(m.costo)}</span>
             </div>
+              <button
+                type="button"
+                onClick={() => handleEliminar(m.idmantenimiento)}
+                disabled={loading}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash size={16} />
+                Eliminar
+              </button>
           </div>
         ))}
       </div>

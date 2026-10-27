@@ -793,6 +793,9 @@ function ConfirmModal({ title, message, confirmLabel, confirmCls, onConfirm, onC
 }
 
 // ── Quotes module ──────────────────────────────────────────────────────────────
+import * as XLSX from "xlsx";
+import { useReactToPrint } from "react-to-print";
+import { FileDown } from "lucide-react";
 
 export default function QuotesModule() {
   const { perfil } = useAuth();
@@ -869,6 +872,76 @@ export default function QuotesModule() {
       if (filterTo && q.createdAt > filterTo) return false;
       return true;
     }), [quotes, filterStatus, filterFrom, filterTo]);
+
+  const tableRef = useRef<HTMLDivElement | null>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: tableRef,
+    documentTitle: "Reporte_de_Cotizaciones",
+    pageStyle: `
+      @page {
+        size: landscape;
+        margin: 10mm;
+      }
+
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        th, td {
+          border: 1px solid #ddd;
+          padding: 6px;
+        }
+
+        tr {
+          page-break-inside: avoid;
+        }
+      }
+    `,
+  });
+
+
+
+  const exportarExcel = () => {
+    if (filtered.length === 0) {
+      alert("No hay cotizaciones para exportar.");
+      return;
+    }
+
+    const datos = filtered.map((q) => {
+      const contacto = contactos.find(
+        (c) => String(c.idcontacto) === q.contactId
+      );
+
+      return {
+        "N.º Cotización": q.number,
+        "Contacto": contacto ? displayContact(contacto) : "—",
+        "Empleado": q.employee,
+        "Fecha de creación": q.createdAt,
+        "Fecha de inicio": q.startDate,
+        "Fecha de fin": q.endDate,
+        "Cantidad de líneas": q.lines.length,
+        "Total cotización (Q)": q.lines.reduce(
+          (total, linea) => total + linea.subtotal,
+          0
+        ),
+        "Estado": q.status,
+      };
+    });
+
+    const hoja = XLSX.utils.json_to_sheet(datos);
+    const libro = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(libro, hoja, "Cotizaciones");
+    XLSX.writeFile(libro, "Reporte_de_Cotizaciones.xlsx");
+  };
 
   async function handleSave(q: Quote): Promise<string | null> {
     const lineasPayload = q.lines.map((l) => ({
@@ -957,6 +1030,25 @@ export default function QuotesModule() {
           <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>Cotizaciones</h2>
           <p className="text-gray-400 text-sm">{quotes.length} cotizaciones · {quotes.filter((q) => q.status === "Cotizado").length} pendientes</p>
         </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  disabled={wizardLoading || filtered.length === 0}
+                  className="flex items-center gap-2 border border-[#102c4d] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exportar PDF
+                </button>
+
+                <button
+                  onClick={exportarExcel}
+                  disabled={wizardLoading || filtered.length === 0}
+                  className="flex items-center gap-2 border border-emerald-600 text-emerald-700 font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exportar Excel
+                </button>
+
         <button
           onClick={() => setShowWizard(true)}
           disabled={wizardLoading}
@@ -967,6 +1059,7 @@ export default function QuotesModule() {
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" /></svg>
           {wizardLoading ? "Cargando datos…" : "Nueva Cotización"}
         </button>
+              </div>
       </div>
 
       {(quotesError || contactsError || employeesError || tariffsError || actionError) && (
@@ -1018,7 +1111,41 @@ export default function QuotesModule() {
         })}
       </div>
 
-      <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div
+        ref={tableRef}
+        className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print:!block print:!border-0 print:!shadow-none"
+      > 
+        <div className="hidden print:block mb-6">
+          <h1 className="text-2xl font-bold text-center">
+            Reporte de Cotizaciones
+          </h1>
+
+          <p className="text-center text-sm text-gray-600 mt-1">
+            ALQUILERES ATECA
+          </p>
+
+          <div className="mt-5 border-b border-gray-300 pb-3 text-sm space-y-1">
+            <p>
+              <strong>Estado:</strong>{" "}
+              {filterStatus || "Todos los estados"}
+            </p>
+
+            <p>
+              <strong>Fecha desde:</strong>{" "}
+              {formatearFecha(filterFrom) || "Sin fecha inicial"}
+            </p>
+
+            <p>
+              <strong>Fecha hasta:</strong>{" "}
+              {formatearFecha(filterTo) || "Sin fecha final"}
+            </p>
+
+            <p>
+              <strong>Total de cotizaciones:</strong>{" "}
+              {filtered.length}
+            </p>
+          </div>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">

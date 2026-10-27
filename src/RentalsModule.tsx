@@ -9,8 +9,9 @@ import { useCotizaciones } from "./uses/useCotizaciones";
 import { useEstadosCotizacion } from "./uses/useEstadosCotizacion";
 import { useAlquileres } from "./uses/useAlquileres";
 import { useEstadosAlquiler } from "./uses/useEstadosAlquiler";
-import type { Activo, Contacto, Empleado, TarifaActivo, DetalleAlquiler } from "../types/inventory";
+import type { Activo, Contacto, Empleado, TarifaActivo, DetalleAlquiler, Alquiler } from "../types/inventory";
 import { formatearFecha } from "../types/format";
+import { ZonaImpresion, ContratoAlquiler, ConstanciaDevolucion, useImprimir } from "./DocumentosAlquiler";
 
 // ── Helpers de formato y fecha ──────────────────────────────────────────────────
 
@@ -250,16 +251,22 @@ function ReturnModal({ linea, fechaInicioAlquiler, onClose, onSave }: {
   );
 }
 
-// ── Rental Detail ──────────────────────────────────────────────────────────────
-
+// ── Rental Detail (reemplaza la función completa) ──────────────────────────────
+ 
 function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () => void }) {
-  const { alquileres, lineasDe, registrarDevolucion } = useAlquileres();
+  const { alquileres, lineasDe, registrarDevolucion, cambiarEstado } = useAlquileres();
+  const { estados: estadosAlquiler } = useEstadosAlquiler();
   const [returnLine, setReturnLine] = useState<DetalleAlquiler | null>(null);
+  const [showCancel, setShowCancel] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-
+ 
+  const numero = `ALQ-${String(idalquiler).padStart(4, "0")}`;
+  const contrato = useImprimir(`Contrato_${numero}`);
+  const constancia = useImprimir(`Constancia_devolucion_${numero}`);
+ 
   const rental = alquileres.find((r) => r.idalquiler === idalquiler);
   const lineas = lineasDe(idalquiler);
-
+ 
   if (!rental) {
     return (
       <div className="p-6 text-center text-gray-400 text-sm">
@@ -268,11 +275,13 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
       </div>
     );
   }
-
+ 
   const status = statusLabel(rental.estado?.estadoalquiler);
-  const pendingCount = lineas.filter((l) => l.estadodevuelto === null).length;
-  const totalDanios = lineas.reduce((s) => s, 0); // los daños se ven en tbregistrodanio; costo se refleja en totalreal
-
+  const cancelado = status === "Cancelado";
+  const danioDe = (l: DetalleAlquiler) => (l.danios ?? []).reduce((s, d) => s + Number(d.costo), 0);
+  const totalDanios = lineas.reduce((s, l) => s + danioDe(l), 0);
+  const pendingCount = cancelado ? 0 : lineas.filter((l) => l.estadodevuelto === null).length;
+ 
   async function handleReturn(fecha: string, bien: boolean, desc: string, costo: number) {
     if (!returnLine) return { error: "Selecciona una línea." };
     const tarifa = returnLine.tarifa;
@@ -283,7 +292,19 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
     if (resultado.error) setActionError(resultado.error);
     return resultado;
   }
-
+ 
+  async function confirmarCancelacion() {
+    const idCancelado = estadosAlquiler.find((e) => e.estadoalquiler.toLowerCase() === "cancelado")?.idestadoalquiler;
+    if (!idCancelado) return { error: "No se encontró el estado 'cancelado' en tbestadoalquiler." };
+    return cambiarEstado(rental!.idalquiler, idCancelado);
+  }
+ 
+  // Estado de cada línea: en un alquiler cancelado las pendientes se muestran como «Cancelado»
+  const badgeLinea = (l: DetalleAlquiler) =>
+    cancelado && l.estadodevuelto === null
+      ? <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700">Cancelado</span>
+      : <LineBadge estadoDevuelto={l.estadodevuelto} />;
+ 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-start gap-3">
@@ -292,28 +313,53 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>ALQ-{String(rental.idalquiler).padStart(4, "0")}</h2>
+            <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>{numero}</h2>
             <RentalBadge status={status} />
             {rental.idcotizacion && <span className="text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full font-mono">Origen: COT-{String(rental.idcotizacion).padStart(4, "0")}</span>}
           </div>
           <p className="text-gray-400 text-sm mt-0.5">{rental.empleado ? displayEmployee(rental.empleado) : "—"} · Iniciado {formatearFecha(rental.fechainicio)}</p>
         </div>
+ 
+        <div className="flex flex-wrap gap-2 self-start">
+          {!cancelado && (
+            <button onClick={() => contrato.imprimir()} className="px-3 py-2 text-xs font-semibold text-[#102c4d] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              Contrato (PDF)
+            </button>
+          )}
+          {status === "Iniciado" && (
+            <button onClick={() => setShowCancel(true)} className="px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+              Cancelar alquiler
+            </button>
+          )}
+        </div>
       </div>
-
+ 
       {actionError && <ErrorBanner message={actionError} />}
-
-      {status === "Completado" && (
-        <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-            <svg viewBox="0 0 20 20" fill="white" className="w-5 h-5"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-          </div>
-          <div>
-            <p className="font-bold text-emerald-800" style={{ fontFamily: "Outfit, sans-serif" }}>¡Alquiler completado!</p>
-            <p className="text-sm text-emerald-700">Todos los activos han sido devueltos.</p>
-          </div>
+ 
+      {cancelado && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4">
+          <p className="font-bold text-red-800" style={{ fontFamily: "Outfit, sans-serif" }}>Alquiler cancelado</p>
+          <p className="text-sm text-red-700">Los activos de este alquiler volvieron a estar disponibles. Se conserva solo como historial.</p>
         </div>
       )}
-
+ 
+      {status === "Completado" && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 20 20" fill="white" className="w-5 h-5"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+            </div>
+            <div>
+              <p className="font-bold text-emerald-800" style={{ fontFamily: "Outfit, sans-serif" }}>¡Alquiler completado!</p>
+              <p className="text-sm text-emerald-700">Todos los activos han sido devueltos.</p>
+            </div>
+          </div>
+          <button onClick={() => constancia.imprimir()} className="px-4 py-2 text-sm font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors" style={{ fontFamily: "Outfit, sans-serif" }}>
+            Constancia de devolución (PDF)
+          </button>
+        </div>
+      )}
+ 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
@@ -322,17 +368,17 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
             <div className="text-sm text-gray-500">{rental.contacto?.empresa?.nombre ?? "—"}</div>
             <div className="text-xs text-gray-400 mt-1">{rental.contacto?.telefono ?? "—"}</div>
           </div>
-
+ 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Fechas</p>
-            {[["Inicio", formatearFecha(rental.fechainicio)], ["Fin estimado", formatearFecha(rental.fechafinestimada)], ["Fin real", formatearFecha(rental.fechafinreal) ?? "—"]].map(([k, v]) => (
+            {[["Inicio", formatearFecha(rental.fechainicio)], ["Fin estimado", formatearFecha(rental.fechafinestimada)], ["Fin real", formatearFecha(rental.fechafinreal) || "—"]].map(([k, v]) => (
               <div key={k} className="flex justify-between items-center">
                 <span className="text-xs text-gray-400">{k}</span>
                 <span className="text-xs font-semibold text-gray-900">{v}</span>
               </div>
             ))}
           </div>
-
+ 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Totales</p>
             <div className="flex justify-between">
@@ -343,8 +389,14 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
               <span className="text-xs text-gray-400">Real (a la fecha)</span>
               <span className="text-sm font-bold text-emerald-700">{fmt(rental.totalreal)}</span>
             </div>
+            {totalDanios > 0 && (
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-xs text-red-500 font-medium">Incluye cargos por daños</span>
+                <span className="text-sm font-bold text-red-600">{fmt(totalDanios)}</span>
+              </div>
+            )}
           </div>
-
+ 
           {pendingCount > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-2">
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-500 flex-shrink-0"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
@@ -352,14 +404,14 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
             </div>
           )}
         </div>
-
+ 
         <div className="lg:col-span-2">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-[#102c4d] font-bold text-sm" style={{ fontFamily: "Outfit, sans-serif" }}>Líneas del alquiler</h3>
               <span className="text-xs text-gray-400">{lineas.length} equipo(s)</span>
             </div>
-
+ 
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -382,10 +434,20 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
                           ? <span className={line.estadodevuelto === false ? "text-red-600 font-semibold" : "text-emerald-600 font-semibold"}>{formatearFecha(line.fechadevolucion)}</span>
                           : <span className="text-gray-400">—</span>}
                       </td>
-                      <td className="px-4 py-3.5"><div className="font-bold text-[#102c4d] text-sm">{fmt(line.subtotal)}</div></td>
-                      <td className="px-4 py-3.5"><LineBadge estadoDevuelto={line.estadodevuelto} /></td>
                       <td className="px-4 py-3.5">
-                        {line.estadodevuelto === null && (
+                        <div className="font-bold text-[#102c4d] text-sm">{fmt(line.subtotal)}</div>
+                        {danioDe(line) > 0 && (
+                          <div className="text-[10px] font-semibold text-red-600 mt-0.5">+ {fmt(danioDe(line))} por daño</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {badgeLinea(line)}
+                        {(line.danios ?? []).map((d) => (
+                          <div key={d.idregistrodanio} className="text-[10px] text-red-500 mt-1 max-w-[170px] leading-tight">{d.descripcion}</div>
+                        ))}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {line.estadodevuelto === null && !cancelado && (
                           <button onClick={() => setReturnLine(line)} className="flex items-center gap-1.5 text-xs font-semibold bg-[#102c4d] text-white px-3 py-1.5 rounded-lg hover:bg-[#1a3d6b] transition-colors whitespace-nowrap" style={{ fontFamily: "Outfit, sans-serif" }}>
                             Registrar
                           </button>
@@ -396,7 +458,7 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
                 </tbody>
               </table>
             </div>
-
+ 
             <div className="md:hidden divide-y divide-gray-100">
               {lineas.map((line) => (
                 <div key={line.iddetallealquiler} className="px-4 py-4 space-y-3">
@@ -406,11 +468,17 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
                       <div className="text-sm font-medium text-gray-900 mt-1">{line.activo?.nombre}</div>
                       <div className="text-xs text-gray-400">{line.activo?.categoria?.nombre}</div>
                     </div>
-                    <LineBadge estadoDevuelto={line.estadodevuelto} />
+                    {badgeLinea(line)}
                   </div>
+                  {(line.danios ?? []).map((d) => (
+                    <div key={d.idregistrodanio} className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{d.descripcion} · {fmt(Number(d.costo))}</div>
+                  ))}
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <div className="font-bold text-[#102c4d]">{fmt(line.subtotal)}</div>
-                    {line.estadodevuelto === null && (
+                    <div>
+                      <div className="font-bold text-[#102c4d]">{fmt(line.subtotal)}</div>
+                      {danioDe(line) > 0 && <div className="text-[10px] font-semibold text-red-600">+ {fmt(danioDe(line))} por daño</div>}
+                    </div>
+                    {line.estadodevuelto === null && !cancelado && (
                       <button onClick={() => setReturnLine(line)} className="flex items-center gap-1.5 text-xs font-semibold bg-[#102c4d] text-white px-3 py-1.5 rounded-lg hover:bg-[#1a3d6b] transition-colors" style={{ fontFamily: "Outfit, sans-serif" }}>
                         Registrar devolución
                       </button>
@@ -419,7 +487,7 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
                 </div>
               ))}
             </div>
-
+ 
             <div className="bg-[#102c4d] px-5 py-4 flex items-center justify-between">
               <span className="text-blue-200 text-sm" style={{ fontFamily: "Outfit, sans-serif" }}>Total estimado / real</span>
               <div className="text-right">
@@ -430,7 +498,7 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
           </div>
         </div>
       </div>
-
+ 
       {returnLine && (
         <ReturnModal
           linea={returnLine}
@@ -439,6 +507,21 @@ function RentalDetail({ idalquiler, onBack }: { idalquiler: number; onBack: () =
           onSave={handleReturn}
         />
       )}
+ 
+      {showCancel && (
+        <CancelRentalModal
+          numero={numero}
+          vieneDeCotizacion={!!rental.idcotizacion}
+          onClose={() => setShowCancel(false)}
+          onConfirm={confirmarCancelacion}
+        />
+      )}
+ 
+      {/* Documentos imprimibles (fuera de pantalla) */}
+      <ZonaImpresion>
+        <ContratoAlquiler ref={contrato.ref} alquiler={rental} lineas={lineas} />
+        {status === "Completado" && <ConstanciaDevolucion ref={constancia.ref} alquiler={rental} lineas={lineas} />}
+      </ZonaImpresion>
     </div>
   );
 }
@@ -1048,7 +1131,95 @@ export function QRScannerView({
   );
 }
 
+// ── Cancelar alquiler ──────────────────────────────────────────────────────────
+ 
+function CancelRentalModal({ numero, vieneDeCotizacion, onClose, onConfirm }: {
+  numero: string;
+  vieneDeCotizacion: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<{ error: string | null }>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+ 
+  async function confirmar() {
+    setSaving(true);
+    setError(null);
+    const resultado = await onConfirm();
+    setSaving(false);
+    if (resultado.error) { setError(resultado.error); return; }
+    onClose();
+  }
+ 
+  return (
+    <Modal title={`Cancelar ${numero}`} onClose={onClose}>
+      <ErrorBanner message={error} />
+      <p className="text-sm text-gray-600 mb-3">Al cancelar este alquiler:</p>
+      <ul className="text-sm text-gray-600 space-y-1.5 list-disc pl-5">
+        <li>Todos sus activos vuelven al estado <strong>Disponible</strong>.</li>
+        <li>El alquiler se conserva en el historial con estado <strong>Cancelado</strong>.</li>
+        {vieneDeCotizacion && <li>Su cotización de origen vuelve a <strong>Cotizado</strong> y se puede convertir de nuevo.</li>}
+        <li>Esta acción <strong>no se puede deshacer</strong>.</li>
+      </ul>
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Volver</button>
+        <button disabled={saving} onClick={confirmar} className="px-5 py-2 text-sm font-bold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-60" style={{ fontFamily: "Outfit, sans-serif" }}>
+          {saving ? "Cancelando…" : "Sí, cancelar alquiler"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Aviso al crear: ofrece el contrato ─────────────────────────────────────────
+ 
+function AlquilerCreadoModal({ idalquiler, alquiler, lineas, onClose, onVer }: {
+  idalquiler: number;
+  alquiler?: Alquiler;
+  lineas: DetalleAlquiler[];
+  onClose: () => void;
+  onVer: () => void;
+}) {
+  const numero = `ALQ-${String(idalquiler).padStart(4, "0")}`;
+  const contrato = useImprimir(`Contrato_${numero}`);
+  const listo = !!alquiler && lineas.length > 0;
+ 
+  return (
+    <Modal title="Alquiler creado" onClose={onClose}>
+      <div className="flex items-start gap-3 mb-5">
+        <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 20 20" fill="white" className="w-5 h-5"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+        </div>
+        <div>
+          <p className="font-bold text-[#102c4d]" style={{ fontFamily: "Outfit, sans-serif" }}>{numero} registrado correctamente</p>
+          <p className="text-sm text-gray-500 mt-0.5">Genera el contrato para que el cliente lo revise y lo firme antes de entregar los equipos.</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
+        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cerrar</button>
+        <button onClick={onVer} className="px-4 py-2 text-sm font-semibold text-[#102c4d] border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Ver alquiler</button>
+        <button
+          disabled={!listo}
+          onClick={() => contrato.imprimir()}
+          className="px-5 py-2 text-sm font-bold bg-[#ffbc07] text-[#102c4d] rounded-lg hover:bg-[#e5a800] transition-colors disabled:opacity-50"
+          style={{ fontFamily: "Outfit, sans-serif" }}
+        >
+          {listo ? "Generar contrato (PDF)" : "Preparando contrato…"}
+        </button>
+      </div>
+      {alquiler && (
+        <ZonaImpresion>
+          <ContratoAlquiler ref={contrato.ref} alquiler={alquiler} lineas={lineas} />
+        </ZonaImpresion>
+      )}
+    </Modal>
+  );
+}
+
 // ── Module root ────────────────────────────────────────────────────────────────
+import * as XLSX from "xlsx";
+import { useReactToPrint } from "react-to-print";
+import { FileDown } from "lucide-react";
 
 type RentalTab = "list" | "scanner";
 
@@ -1070,7 +1241,70 @@ export default function RentalsModule() {
       if (filterTo && r.fechainicio > filterTo) return false;
       return true;
     }), [rows, filterStatus, filterFrom, filterTo]);
- 
+
+  const tableRef = useRef<HTMLDivElement | null>(null);
+
+  const handlePrint = useReactToPrint({
+    contentRef: tableRef,
+    documentTitle: "Reporte_de_Alquileres",
+    pageStyle: `
+      @page {
+        size: landscape;
+        margin: 10mm;
+      }
+
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+
+        th, td {
+          border: 1px solid #ddd;
+          padding: 6px;
+        }
+
+        tr {
+          page-break-inside: avoid;
+        }
+      }
+    `,
+  });
+
+  const exportarExcel = () => {
+    if (filtered.length === 0) {
+      alert("No hay alquileres para exportar.");
+      return;
+    }
+
+    const datos = filtered.map(({ r, status }) => ({
+      "N.º Alquiler": `ALQ-${String(r.idalquiler).padStart(4, "0")}`,
+      "N.º Cotización": r.idcotizacion
+        ? `COT-${String(r.idcotizacion).padStart(4, "0")}`
+        : "—",
+      "Contacto": `${r.contacto?.nombre ?? ""} ${r.contacto?.apellido ?? ""}`.trim(),
+      "Empresa": r.contacto?.empresa?.nombre ?? "—",
+      "Fecha de inicio": r.fechainicio,
+      "Fecha fin estimada": r.fechafinestimada,
+      "Fecha fin real": r.fechafinreal ?? "—",
+      "Total estimado (Q)": r.totalestimado,
+      "Total real (Q)": r.totalreal,
+      "Estado": status,
+    }));
+
+    const hoja = XLSX.utils.json_to_sheet(datos);
+    const libro = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(libro, hoja, "Alquileres");
+
+    XLSX.writeFile(libro, "Reporte_de_Alquileres.xlsx");
+  };
+  
   if (detailId !== null) {
     return <RentalDetail idalquiler={detailId} onBack={() => { void recargar(); setDetailId(null); }} />;
   }
@@ -1096,9 +1330,33 @@ export default function RentalsModule() {
                 <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>Alquileres</h2>
                 <p className="text-gray-400 text-sm">{alquileres.length} registros · {rows.filter((x) => x.status === "Iniciado" || x.status === "Parcial").length} activos</p>
               </div>
-              <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors shadow-sm" style={{ fontFamily: "Outfit, sans-serif" }}>
-                Nuevo Alquiler
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  disabled={loading || filtered.length === 0}
+                  className="flex items-center gap-2 border border-[#102c4d] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-blue-50 disabled:opacity-50"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exportar PDF
+                </button>
+
+                <button
+                  onClick={exportarExcel}
+                  disabled={loading || filtered.length === 0}
+                  className="flex items-center gap-2 border border-emerald-600 text-emerald-700 font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  <FileDown className="w-4 h-4" />
+                  Exportar Excel
+                </button>
+
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800]"
+                  style={{ fontFamily: "Outfit, sans-serif" }}
+                >
+                  Nuevo Alquiler
+                </button>
+              </div>
             </div>
 
             {error && <ErrorBanner message={error} />}
@@ -1120,7 +1378,41 @@ export default function RentalsModule() {
               </div>
             </div>
 
-            <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div
+              ref={tableRef}
+              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print:!block print:!border-0 print:!shadow-none"
+            >
+                      <div className="hidden print:block mb-6">
+          <h1 className="text-2xl font-bold text-center">
+            Reporte de Alquileres
+          </h1>
+
+          <p className="text-center text-sm text-gray-600 mt-1">
+            ALQUILERES ATECA
+          </p>
+
+          <div className="mt-5 border-b border-gray-300 pb-3 text-sm space-y-1">
+            <p>
+              <strong>Estado:</strong>{" "}
+              {filterStatus || "Todos los estados"}
+            </p>
+
+            <p>
+              <strong>Fecha desde:</strong>{" "}
+              {formatearFecha(filterFrom) || "Sin fecha inicial"}
+            </p>
+
+            <p>
+              <strong>Fecha hasta:</strong>{" "}
+              {formatearFecha(filterTo) || "Sin fecha final"}
+            </p>
+
+            <p>
+              <strong>Total de alquileres:</strong>{" "}
+              {filtered.length}
+            </p>
+          </div>
+        </div>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
