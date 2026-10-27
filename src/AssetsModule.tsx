@@ -3,7 +3,7 @@ import { useCategorias } from "./uses/useCategorias";
 import { useActivos, useEstadosActivo } from "./uses/useActivos";
 import { useTarifas } from "./uses/useTarifas";
 import { useMantenimientos } from "./uses/useMantenimientos";
-import type { Activo, Categoria } from "../types/inventory";
+import type { Activo, Categoria, Mantenimiento } from "../types/inventory";
 import { fmtQ, formatearFecha, urlPublicaActivo } from "../types/format";
 import { QRCodeSVG } from "qrcode.react";
 import { Trash } from "lucide-react";
@@ -785,12 +785,97 @@ function MantenimientoModal({ onClose, activos, activoUrgentesIds, onSave }: {
   );
 }
 
+function DeleteMaintenanceModal({
+  numero,
+  activo,
+  onClose,
+  onConfirm,
+}: {
+  numero: number;
+  activo: string;
+  onClose: () => void;
+  onConfirm: () => Promise<{ error: string | null }>;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmar() {
+    setSaving(true);
+    setError(null);
+
+    try {
+      const resultado = await onConfirm();
+
+      if (resultado.error) {
+        setError(resultado.error);
+        return;
+      }
+
+      onClose();
+    } catch {
+      setError("Ocurrió un error al eliminar el mantenimiento.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title="Eliminar mantenimiento" onClose={onClose}>
+      <ErrorBanner message={error} />
+
+      <p className="text-sm text-gray-600 mb-3">
+        ¿Estás segura de que deseas eliminar este registro de mantenimiento?
+      </p>
+
+      <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
+        <p className="text-sm text-gray-600">
+          <strong>Registro:</strong> #{numero}
+        </p>
+        <p className="text-sm text-gray-600">
+          <strong>Activo:</strong> {activo}
+        </p>
+      </div>
+
+      <ul className="text-sm text-gray-600 space-y-1.5 list-disc pl-5 mt-4">
+        <li>El registro se eliminará del historial de mantenimientos.</li>
+        <li>
+          Esta acción <strong>no se puede deshacer</strong>.
+        </li>
+      </ul>
+
+      <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-60"
+        >
+          Volver
+        </button>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={confirmar}
+          className="px-5 py-2 text-sm font-bold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-60"
+          style={{ fontFamily: "Outfit, sans-serif" }}
+        >
+          {saving ? "Eliminando…" : "Sí, eliminar mantenimiento"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+
 function MaintenancesView() {
   const { mantenimientos, loading, error, crear, eliminar } = useMantenimientos();
   const { activos } = useActivos();
   const { estados } = useEstadosActivo();
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [mantenimientoAEliminar, setMantenimientoAEliminar] =
+  useState<Mantenimiento | null>(null);
 
   // Activos que sí pueden recibir mantenimiento: excluye "Inactivo"
   // (un activo dado de baja no debería seguir en el ciclo de revisión).
@@ -852,22 +937,11 @@ function MaintenancesView() {
     return resultado;
   }
 
+  
   async function handleEliminar(idmantenimiento: number) {
-    const confirmar = window.confirm(
-      "¿Estás segura de que deseas eliminar este mantenimiento? Esta acción no se puede deshacer."
-    );
-
-    if (!confirmar) return;
-
-    const resultado = await eliminar(idmantenimiento);
-
-    if (resultado.error) {
-      window.alert(resultado.error);
-      return;
-    }
-
-    window.alert("Mantenimiento eliminado correctamente.");
+    return await eliminar(idmantenimiento);
   }
+
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-5">
@@ -917,7 +991,7 @@ function MaintenancesView() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {loading && <tr><td colSpan={4} className="text-center py-8 text-gray-400 text-sm">Cargando…</td></tr>}
+            {loading && <tr><td colSpan={5} className="text-center py-8 text-gray-400 text-sm">Cargando…</td></tr>}
             {!loading && filtered.map((m) => (
               <tr key={m.idmantenimiento} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-4 py-3.5">
@@ -932,7 +1006,7 @@ function MaintenancesView() {
                 <td className="px-4 py-3 text-center">
                   <button
                     type="button"
-                    onClick={() => handleEliminar(m.idmantenimiento)}
+                    onClick={() => setMantenimientoAEliminar(m)}
                     disabled={loading}
                     title="Eliminar mantenimiento"
                     aria-label="Eliminar mantenimiento"
@@ -960,7 +1034,7 @@ function MaintenancesView() {
             </div>
               <button
                 type="button"
-                onClick={() => handleEliminar(m.idmantenimiento)}
+                onClick={() => setMantenimientoAEliminar(m)}
                 disabled={loading}
                 className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
               >
@@ -977,6 +1051,17 @@ function MaintenancesView() {
           activos={activosElegibles}
           activoUrgentesIds={activoUrgentesIds}
           onSave={handleGuardar}
+        />
+      )}
+
+      {mantenimientoAEliminar && (
+        <DeleteMaintenanceModal
+          numero={mantenimientoAEliminar.idmantenimiento}
+          activo={mantenimientoAEliminar.activo?.nombre ?? "Sin nombre"}
+          onClose={() => setMantenimientoAEliminar(null)}
+          onConfirm={() =>
+            handleEliminar(mantenimientoAEliminar.idmantenimiento)
+          }
         />
       )}
     </div>
