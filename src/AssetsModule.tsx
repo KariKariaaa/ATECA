@@ -357,7 +357,7 @@ function AssetModal({ onClose, categorias, estados, initial, onSave }: {
 
 // ── Lista de Activos ─────────────────────────────────────────────────────────────
 
-function AssetsList() {
+function AssetsList({ esOperador }: { esOperador: boolean }) {
   const { activos, loading, error, crear, editar } = useActivos();
   const { categorias } = useCategorias();
   const { estados } = useEstadosActivo();
@@ -388,9 +388,11 @@ function AssetsList() {
           <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>Activos</h2>
           <p className="text-gray-400 text-sm">{activos.length} equipos registrados</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors shadow-sm" style={{ fontFamily: "Outfit, sans-serif" }}>
-          <IcoPlus /> Nuevo Activo
-        </button>
+        {!esOperador && (
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors shadow-sm" style={{ fontFamily: "Outfit, sans-serif" }}>
+            <IcoPlus /> Nuevo Activo
+          </button>
+        )}
       </div>
 
       {error && <ErrorBanner message={error} />}
@@ -501,7 +503,7 @@ function AssetsList() {
 
 // ── Tarifas ────────────────────────────────────────────────────────────────────
 
-function RatesView() {
+function RatesView({ esOperador }: { esOperador: boolean }) {
   const { tarifas, loading, error, crear, tieneVigente } = useTarifas();
   const { categorias } = useCategorias();
   const [showModal, setShowModal] = useState(false);
@@ -577,6 +579,7 @@ function RatesView() {
           <h2 className="text-[#102c4d] font-bold text-xl" style={{ fontFamily: "Outfit, sans-serif" }}>Tarifas</h2>
           <p className="text-gray-400 text-sm">Precios por categoría (Quetzales) · Las tarifas anteriores se mantienen como históricas</p>
         </div>
+        {!esOperador && (
         <button 
         onClick={() => {
           setForm({
@@ -593,6 +596,7 @@ function RatesView() {
         className="flex items-center gap-2 bg-[#ffbc07] text-[#102c4d] font-bold text-sm px-4 py-2.5 rounded-lg hover:bg-[#e5a800] transition-colors" style={{ fontFamily: "Outfit, sans-serif" }}>
           <IcoPlus /> Nueva Tarifa
         </button>
+        )}
       </div>
 
       {error && <ErrorBanner message={error} />}
@@ -868,7 +872,7 @@ function DeleteMaintenanceModal({
 }
 
 
-function MaintenancesView() {
+function MaintenancesView({ esOperador }: { esOperador: boolean }) {
   const { mantenimientos, loading, error, crear, eliminar } = useMantenimientos();
   const { activos } = useActivos();
   const { estados } = useEstadosActivo();
@@ -1004,6 +1008,7 @@ function MaintenancesView() {
                 <td className="px-4 py-3.5 text-sm text-gray-700 max-w-xs">{m.descripcion ?? "—"}</td>
                 <td className="px-4 py-3.5 font-semibold text-gray-900 whitespace-nowrap">{fmtQ(m.costo)}</td>
                 <td className="px-4 py-3 text-center">
+                  {!esOperador && (
                   <button
                     type="button"
                     onClick={() => setMantenimientoAEliminar(m)}
@@ -1014,6 +1019,7 @@ function MaintenancesView() {
                   >
                     <Trash size={18} />
                   </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -1032,6 +1038,7 @@ function MaintenancesView() {
               <span className="text-xs text-gray-400">{m.fecha}</span>
               <span className="font-bold text-[#102c4d] text-sm">{fmtQ(m.costo)}</span>
             </div>
+            {!esOperador && (
               <button
                 type="button"
                 onClick={() => setMantenimientoAEliminar(m)}
@@ -1041,6 +1048,7 @@ function MaintenancesView() {
                 <Trash size={16} />
                 Eliminar
               </button>
+            )}
           </div>
         ))}
       </div>
@@ -1079,14 +1087,18 @@ const assetTabs: { id: AssetTab; label: string }[] = [
   { id: "maintenances", label: "Mantenimientos" },
 ];
 
-export default function AssetsModule() {
+export default function AssetsModule({ idrol }: { idrol: number | null }) {
   const [tab, setTab] = useState<AssetTab>("list");
+
+  const esOperador = idrol === 2;
 
   return (
     <div className="flex flex-col h-full">
       <div className="bg-white border-b border-gray-200 px-4 md:px-6">
         <div className="flex gap-1 overflow-x-auto">
-          {assetTabs.map((t) => (
+          {assetTabs
+            .filter((t) => !(esOperador && t.id === "categories"))
+            .map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -1100,10 +1112,12 @@ export default function AssetsModule() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {tab === "list" && <AssetsList />}
+        {tab === "list" && <AssetsList esOperador={esOperador} />}
         {tab === "categories" && <CategoriesView />}
-        {tab === "rates" && <RatesView />}
-        {tab === "maintenances" && <MaintenancesView />}
+        {tab === "rates" && <RatesView esOperador={esOperador} />}
+        {tab === "maintenances" && (
+          <MaintenancesView esOperador={esOperador} />
+        )}
       </div>
     </div>
   );

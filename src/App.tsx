@@ -143,6 +143,18 @@ const navItems = [
   { id: "usuarios", label: "Usuarios", icon: "Clients" },
 ];
 
+function obtenerMenuPorRol(idRol: number | undefined) {
+  // El Operador (rol 2) no puede ver Usuarios.
+  if (idRol === 2) {
+    return navItems.filter(
+      (item) => item.id !== "usuarios"
+    );
+  }
+
+  // Los demás roles ven todas las opciones.
+  return navItems;
+}
+
 // ── Login Screen ───────────────────────────────────────────────────────────────
 
 function LoginScreen() {
@@ -340,7 +352,15 @@ function Sidebar({
   onClose?: () => void;
   perfil: PerfilUsuario | null;
   onSignOut: () => Promise<void>;
-}) {
+})
+{
+  const menuItems = obtenerMenuPorRol(perfil?.idrol);
+  const menuPrincipal = menuItems.filter((item) =>
+    ["dashboard", "quotes", "rentals", "assets", "clients"].includes(item.id)
+  );
+  const menuSistema = menuItems.filter((item) =>
+    ["perfil", "pass", "usuarios"].includes(item.id)
+  );
   return (
     <aside
       className={`bg-[#102c4d] flex flex-col h-full ${mobile ? "w-72" : "w-60"}`}
@@ -366,21 +386,27 @@ function Sidebar({
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         <p className="text-blue-400 text-[10px] font-semibold uppercase tracking-widest px-4 mb-3">Principal</p>
-        {navItems.slice(0, 5).map((item) => (
+        {menuPrincipal.map((item) => (
           <NavItem
             key={item.id}
             item={item}
             active={active === item.id}
-            onClick={() => { onNav(item.id); onClose?.(); }}
+            onClick={() => {
+              onNav(item.id);
+              onClose?.();
+            }}
           />
         ))}
         <p className="text-blue-400 text-[10px] font-semibold uppercase tracking-widest px-4 mt-5 mb-3">Sistema</p>
-        {navItems.slice(5).map((item) => (
+        {menuSistema.map((item) => (
           <NavItem
             key={item.id}
             item={item}
             active={active === item.id}
-            onClick={() => { onNav(item.id); onClose?.(); }}
+            onClick={() => {
+              onNav(item.id);
+              onClose?.();
+            }}
           />
         ))}
       </nav>
@@ -1045,7 +1071,7 @@ function AppContent() {
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
           {activePage === "dashboard" && <Dashboard />}
-          {activePage === "assets" && <AssetsModule />}
+          {activePage === "assets" && <AssetsModule idrol={perfil?.idrol ?? null} />}
           {activePage === "quotes" && <QuotesModule />}
           {activePage === "rentals" && <RentalsModule />}
           {activePage === "clients" && <ClientsModule />}
@@ -1055,7 +1081,11 @@ function AppContent() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around px-2 py-2 z-40">
-        {navItems.slice(0, 5).map((item) => {
+        {obtenerMenuPorRol(perfil?.idrol)
+          .filter((item) =>
+            ["dashboard", "quotes", "rentals", "assets", "clients"].includes(item.id)
+          )
+        .map((item) => {
           const Ic = Icon[item.icon as keyof typeof Icon] as React.FC;
           const isActive = activePage === item.id;
           return (
