@@ -7,6 +7,7 @@ import type { Activo, Categoria, Mantenimiento } from "../types/inventory";
 import { fmtQ, formatearFecha, urlPublicaActivo } from "../types/format";
 import { QRCodeSVG } from "qrcode.react";
 import { Trash } from "lucide-react";
+import { fechaLocalHoy } from "./uses/useDashboard";
 
 // ── Shared UI ──────────────────────────────────────────────────────────────────
 
@@ -733,7 +734,7 @@ function MantenimientoModal({ onClose, activos, activoUrgentesIds, onSave }: {
   activoUrgentesIds: Set<number>;
   onSave: (payload: { idactivo: number; fecha: string; descripcion: string | null; costo: number }) => Promise<{ error: string | null }>;
 }) {
-  const hoy = new Date().toISOString().slice(0, 10);
+  const hoy = fechaLocalHoy();
   const [form, setForm] = useState({ idactivo: "", fecha: hoy, descripcion: "", costo: "" });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

@@ -6,6 +6,7 @@ import ClientsModule from "./ClientesModule";
 import UsuariosModule from"./UsuariosModule";
 import PerfilModals, { type PerfilModalTipo } from "./Perfilmodals";
 import { QRScannerView } from "./RentalsModule";
+import ReportesDashboard from "./ReportesDashboard";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -507,7 +508,7 @@ function KpiCard({
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
-function Dashboard() {
+function ResumenDashboard() {
   const {
     data,
     loading,
@@ -962,6 +963,30 @@ function Dashboard() {
     </div>
   );
 }
+
+function Dashboard() {
+  const [tab, setTab] = useState<"resumen" | "reportes">("resumen");
+  return (
+    <div>
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6">
+        <div className="flex gap-1">
+          {([{ id: "resumen", label: "Resumen" }, { id: "reportes", label: "Reportes" }] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-3.5 text-sm font-semibold border-b-2 transition-colors ${tab === t.id ? "border-[#ffbc07] text-[#102c4d]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+              style={{ fontFamily: "Outfit, sans-serif" }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "resumen" ? <ResumenDashboard /> : <ReportesDashboard />}
+    </div>
+  );
+}
+
 // ── Main App ───────────────────────────────────────────────────────────────────
 
 import { AuthProvider, useAuth } from "./uses/useAuth";

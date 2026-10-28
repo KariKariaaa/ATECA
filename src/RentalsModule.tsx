@@ -12,6 +12,7 @@ import { useEstadosAlquiler } from "./uses/useEstadosAlquiler";
 import type { Activo, Contacto, Empleado, TarifaActivo, DetalleAlquiler, Alquiler } from "../types/inventory";
 import { formatearFecha } from "../types/format";
 import { ZonaImpresion, ContratoAlquiler, ConstanciaDevolucion, useImprimir } from "./DocumentosAlquiler";
+import { fechaLocalHoy } from "./uses/useDashboard";
 
 // ── Helpers de formato y fecha ──────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ function ReturnModal({ linea, fechaInicioAlquiler, onClose, onSave }: {
   onClose: () => void;
   onSave: (fecha: string, bien: boolean, descripcion: string, costo: number) => Promise<{ error: string | null }>;
 }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(fechaLocalHoy());
   const [estado, setEstado] = useState<"Bien" | "Dañado">("Bien");
   const [desc, setDesc] = useState("");
   const [cost, setCost] = useState("");
@@ -179,6 +180,7 @@ function ReturnModal({ linea, fechaInicioAlquiler, onClose, onSave }: {
   void lateBy; // (se deja disponible el cálculo por si se muestra más adelante)
 
   async function guardar() {
+    if (date > fechaLocalHoy()) { setError("La fecha de devolución no puede ser futura."); return; }
     if (estado === "Dañado" && !desc.trim()) { setError("Describe el daño encontrado."); return; }
     setSaving(true);
     setError(null);
@@ -203,7 +205,7 @@ function ReturnModal({ linea, fechaInicioAlquiler, onClose, onSave }: {
 
       <div className="space-y-4">
         <Field label="Fecha de devolución">
-          <input type="date" className={inputCls} value={date} min={fechaInicioAlquiler} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" className={inputCls} value={date} min={fechaInicioAlquiler} max={fechaLocalHoy()} onChange={(e) => setDate(e.target.value)} />
         </Field>
 
         <Field label="Estado del activo al devolver">
@@ -990,7 +992,7 @@ export function QRScannerView({
         const tarifa = relatedOne(detalle.tarifa as any);
         const contacto = alquiler ? relatedOne((alquiler as any).contacto) : null;
         if (alquiler && tarifa) {
-          const hoy = new Date().toISOString().slice(0, 10);
+          const hoy = fechaLocalHoy(); 
           const costo = calcularSubtotal(tarifa as any, (alquiler as any).fechainicio, hoy, (detalle as any).descuento ?? 0);
           alquilerActivo = {
             numero: `ALQ-${String((alquiler as any).idalquiler).padStart(4, "0")}`,
