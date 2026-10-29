@@ -7,6 +7,7 @@ import UsuariosModule from"./UsuariosModule";
 import PerfilModals, { type PerfilModalTipo } from "./Perfilmodals";
 import { QRScannerView } from "./RentalsModule";
 import ReportesDashboard from "./ReportesDashboard";
+import BackupModule from "./BackupModule";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -142,14 +143,13 @@ const navItems = [
   { id: "perfil", label: "Mi perfil", icon: "User" },
   { id: "pass", label: "Contraseña", icon: "Lock" },
   { id: "usuarios", label: "Usuarios", icon: "Clients" },
+  { id: "backup", label: "Respaldo", icon: "Settings" },
 ];
 
 function obtenerMenuPorRol(idRol: number | undefined) {
   // El Operador (rol 2) no puede ver Usuarios.
   if (idRol === 2) {
-    return navItems.filter(
-      (item) => item.id !== "usuarios"
-    );
+    return navItems.filter((item) => item.id !== "usuarios" && item.id !== "backup");
   }
 
   // Los demás roles ven todas las opciones.
@@ -360,7 +360,7 @@ function Sidebar({
     ["dashboard", "quotes", "rentals", "assets", "clients"].includes(item.id)
   );
   const menuSistema = menuItems.filter((item) =>
-    ["perfil", "pass", "usuarios"].includes(item.id)
+    ["perfil", "pass", "usuarios", "backup"].includes(item.id)
   );
   return (
     <aside
@@ -998,6 +998,8 @@ const pageTitles: Record<string, string> = {
   assets: "Activos",
   clients: "Clientes",
   pass: "Contraseña",
+  backup: "Respaldo",
+  usuarios: "Usuarios"
 };
 
 
@@ -1101,6 +1103,7 @@ function AppContent() {
           {activePage === "rentals" && <RentalsModule />}
           {activePage === "clients" && <ClientsModule />}
           {activePage === "usuarios" && <UsuariosModule />}
+          {activePage === "backup" && <BackupModule />}
         </main>
       </div>
 
