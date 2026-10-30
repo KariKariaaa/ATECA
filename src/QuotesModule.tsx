@@ -659,17 +659,6 @@ function QuoteDetail({ quote, contacts, onBack, onEdit, onCancel }: {
               Editar
             </button>
           )}
-          {isConvertible && (
-            <button
-              disabled
-              title="Disponible en una próxima etapa"
-              className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
-              style={{ fontFamily: "Outfit, sans-serif" }}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" /><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-5h2.038A2 2 0 0115 11.293V10h.5a.5.5 0 00.354-.854l-3-3A.5.5 0 0012.5 6H11V5a1 1 0 00-1-1H3z" /></svg>
-              Convertir en Alquiler
-            </button>
-          )}
         </div>
       </div>
 
