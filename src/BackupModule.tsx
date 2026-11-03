@@ -1,21 +1,15 @@
+import { useState } from "react";
 import { useAuth } from "./uses/useAuth";
-import { useRespaldo } from "./uses/useRespaldo";
+import { useRespaldo, TABLAS_RESPALDO } from "./uses/useRespaldo";
+import BitacoraView from "./BitacoraView";
 
 const formatearBytes = (b: number) =>
   b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(2)} MB`;
 
-export default function BackupModule() {
-  const { perfil } = useAuth();
-  const { generar, ejecutando, progreso, resultado, error, ultimoRespaldo } = useRespaldo();
+// ── Respaldo ────────────────────────────────────────────────────────────────────
 
-  // Mismo criterio que el menú: el rol 2 (Operador) no accede.
-  if (perfil?.idrol === 2) {
-    return (
-      <div className="p-6 text-center text-sm text-gray-500">
-        Solo el Administrador puede generar respaldos.
-      </div>
-    );
-  }
+function RespaldoView({ autor }: { autor: string }) {
+  const { generar, ejecutando, progreso, resultado, error, ultimoRespaldo } = useRespaldo();
 
   const dias = ultimoRespaldo ? Math.floor((Date.now() - ultimoRespaldo.getTime()) / 86400000) : null;
   const totalFilas = resultado ? resultado.filas.reduce((s, f) => s + f.filas, 0) : 0;
@@ -27,7 +21,6 @@ export default function BackupModule() {
         <p className="text-gray-400 text-sm">Descarga una copia de todos los datos del sistema para poder restaurarlos si algo falla.</p>
       </div>
 
-      {/* Estado del último respaldo */}
       <div className={`rounded-xl border p-4 text-sm ${dias === null || dias > 7 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
         {ultimoRespaldo ? (
           <>
@@ -39,10 +32,9 @@ export default function BackupModule() {
         )}
       </div>
 
-      {/* Acción */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
         <button
-          onClick={() => void generar(perfil?.nombreCompleto ?? "—")}
+          onClick={() => void generar(autor)}
           disabled={ejecutando}
           className="px-5 py-2.5 text-sm font-bold bg-[#ffbc07] text-[#102c4d] rounded-lg hover:bg-[#e5a800] transition-colors disabled:opacity-60"
           style={{ fontFamily: "Outfit, sans-serif" }}
@@ -79,18 +71,6 @@ export default function BackupModule() {
         )}
       </div>
 
-      {/* Qué incluye */}
-      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-[#102c4d] font-bold text-sm mb-2" style={{ fontFamily: "Outfit, sans-serif" }}>Qué incluye</h3>
-          <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
-            <li>Los datos de las 17 tablas: activos, tarifas, clientes, cotizaciones, alquileres, daños, mantenimientos, empleados y usuarios.</li>
-            <li>La lista de usuarios (nombre de usuario, rol y correo) para recrear sus cuentas.</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Cómo restaurar */}
       <details className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
         <summary className="cursor-pointer text-[#102c4d] font-bold text-sm" style={{ fontFamily: "Outfit, sans-serif" }}>Cómo restaurar un respaldo</summary>
         <ol className="mt-3 text-sm text-gray-600 space-y-1.5 list-decimal pl-5">
@@ -105,6 +85,42 @@ export default function BackupModule() {
       <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
         <strong>Confidencialidad:</strong> el archivo contiene datos personales (DPI, teléfonos, correos) y los datos financieros de la empresa.
         Guárdalo en un lugar seguro, no lo envíes por correo ni lo dejes en equipos compartidos.
+      </div>
+    </div>
+  );
+}
+
+// ── Módulo: Respaldo + Bitácora ────────────────────────────────────────────────
+
+type Pestana = "respaldo" | "bitacora";
+
+export default function BackupModule() {
+  const { perfil } = useAuth();
+  const [tab, setTab] = useState<Pestana>("respaldo");
+
+  // Mismo criterio que el menú: el rol 2 (Operador) no accede.
+  if (perfil?.idrol === 2) {
+    return <div className="p-6 text-center text-sm text-gray-500">Solo el Administrador puede acceder a esta sección.</div>;
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6">
+        <div className="flex gap-1">
+          {([{ id: "respaldo", label: "Respaldo" }, { id: "bitacora", label: "Bitácora" }] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-3.5 text-sm font-semibold border-b-2 transition-colors ${tab === t.id ? "border-[#ffbc07] text-[#102c4d]" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+              style={{ fontFamily: "Outfit, sans-serif" }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {tab === "respaldo" ? <RespaldoView autor={perfil?.nombreCompleto ?? "—"} /> : <BitacoraView />}
       </div>
     </div>
   );

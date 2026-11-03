@@ -22,6 +22,7 @@ export const TABLAS_RESPALDO = [
   { tabla: "tbdetallealquiler", pk: "iddetallealquiler" },
   { tabla: "tbregistrodanio", pk: "idregistrodanio" },
   { tabla: "tbusuario", pk: "idusuario" },
+  { tabla: "tbbitacora", pk: "idbitacora" },
 ] as const;
 
 const PAGINA = 500; // la API devuelve como máximo 1000 filas por consulta
@@ -104,7 +105,7 @@ function armarScript(datos: Map<string, Fila[]>, autor: string, ahora: Date): st
   L.push("-- RESPALDO DE DATOS · Alquileres ATECA");
   L.push(`-- Generado: ${ahora.toLocaleString("es-GT")} · por: ${autor}`);
   L.push("-- ============================================================");
-  L.push("-- CONTENIDO: solo DATOS de las 17 tablas. NO incluye la estructura");
+  L.push(`-- CONTENIDO: solo DATOS de las ${TABLAS_RESPALDO.length} tablas. NO incluye la estructura`);
   L.push("-- (scripts SQL del proyecto), las contraseñas ni las cuentas de acceso");
   L.push("-- (Supabase Authentication), ni las Edge Functions.");
   L.push("--");
@@ -211,6 +212,10 @@ export function useRespaldo() {
       const sql = armarScript(datos, autor, ahora);
 
       descargar(sql, nombreArchivo);
+      const totalFilas = TABLAS_RESPALDO.reduce((s, { tabla }) => s + (datos.get(tabla)?.length ?? 0), 0);
+      // Deja constancia en la bitácora (si esto falla, el respaldo ya se descargó)
+      const { error: errBitacora } = await supabase.rpc("fn_bitacora_respaldo", { p_filas: totalFilas });
+      if (errBitacora) console.warn("No se pudo registrar el respaldo en la bitácora:", errBitacora.message);
       try { localStorage.setItem(CLAVE_ULTIMO, ahora.toISOString()); } catch { /* sin almacenamiento */ }
       setUltimoRespaldo(ahora);
       setResultado({
